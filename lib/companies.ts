@@ -7,7 +7,7 @@ export type CompanyFilters = {
   activityWindow: number;
 };
 
-export const TODAY = "2026-09-14";
+export const TODAY = new Date().toISOString().slice(0, 10);
 
 export const ALL_OWNERS = "all";
 export const ANY_STAGE = "any";
@@ -16,7 +16,7 @@ export const DEFAULT_FILTERS: CompanyFilters = {
   sortBy: "pipelineValue",
   owner: ALL_OWNERS,
   stage: ANY_STAGE,
-  activityWindow: 90,
+  activityWindow: 0,
 };
 
 export function activeFilterCount({
@@ -42,7 +42,7 @@ export function filterCompanies(
     if (stage !== ANY_STAGE && !company.tags.some((tag) => tag === stage)) {
       return false;
     }
-    return company.activityDays <= activityWindow;
+    return activityWindow === 0 || company.activityDays <= activityWindow;
   });
 
   return filtered.sort((a, b) => {
@@ -121,6 +121,7 @@ export function companyActivity(company: Company) {
 }
 
 export function formatDate(iso: string) {
+  if (!iso) return "—";
   const [, month, day] = iso.split("-").map(Number);
   const names = [
     "Jan",

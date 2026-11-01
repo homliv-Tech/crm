@@ -24,7 +24,7 @@ import {
 } from "@/components/_ui/sheet";
 import {
   ACTIVITY_OPTIONS,
-  OWNER_OPTIONS,
+  ownerOptions,
   SORT_MENU_OPTIONS,
   STAGE_OPTIONS,
 } from "./filter-options";
@@ -128,7 +128,7 @@ export default function MobileFilters({ className }: MobileFiltersProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {OWNER_OPTIONS.map((option) => (
+                  {ownerOptions(companies).map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.value === ALL_OWNERS ? (
                         option.label

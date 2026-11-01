@@ -1,10 +1,10 @@
 "use client";
 
-import Avatar from "@/components/_ui/avatar";
+import { useRouter } from "next/navigation";
+
 import Button from "@/components/_ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/_ui/tabs";
-import Notifications from "./notifications/notifications";
-import { CURRENT_USER } from "@/data/companies";
+
 import { useCompaniesStore } from "@/stores/companies-store";
 import MenuIcon from "@/public/assets/images/_common/menu.svg";
 import ActiveDot from "@/public/assets/images/companies/header/active-dot.svg";
@@ -14,14 +14,17 @@ const TABS = [
   { value: "companies", label: "Companies" },
   { value: "deals", label: "Deals" },
   { value: "forecast", label: "Forecast" },
+  { value: "contacts", label: "Contacts" },
+  { value: "tasks", label: "Tasks" },
+  { value: "activities", label: "Activities" },
 ];
 
 export default function CompaniesHeader() {
+  const router = useRouter();
   const activeTab = useCompaniesStore((state) => state.activeTab);
   const setActiveTab = useCompaniesStore((state) => state.setActiveTab);
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
   const setSearchOpen = useCompaniesStore((state) => state.setSearchOpen);
-  const openProfile = useCompaniesStore((state) => state.openProfile);
 
   return (
     <header className="shrink-0">
@@ -36,7 +39,9 @@ export default function CompaniesHeader() {
           >
             <MenuIcon aria-hidden className="size-3.5" />
           </Button>
-          <h1 className="truncate">Companies</h1>
+          <h1 className="truncate">
+            {TABS.find((t) => t.value === activeTab)?.label ?? "Companies"}
+          </h1>
           <span className="caption-style bg-muted inline-flex shrink-0 items-center gap-0.5 rounded-full border border-[#363636] py-[3px] pr-[5px] pl-[3px]">
             <ActiveDot aria-hidden className="size-3" />
             Active
@@ -53,22 +58,35 @@ export default function CompaniesHeader() {
           >
             <SearchIcon aria-hidden className="size-3.5" />
           </Button>
-          <Notifications />
           <Button
-            variant="secondary"
-            size="none"
-            className="caption-style h-[30px] gap-1.5 py-[5px] pr-[7px] pl-[5px] font-normal"
-            aria-label={`Open profile for ${CURRENT_USER.name}`}
-            onClick={() => openProfile(CURRENT_USER.name)}
+            onClick={async () => {
+              const response = await fetch("/api/auth", { method: "DELETE" });
+              if (response.ok) {
+                useCompaniesStore.setState({
+                  companies: [],
+                  contacts: [],
+                  deals: [],
+                  tasks: [],
+                  activities: [],
+                  loading: true,
+                  selectedIds: [],
+                  detailOpen: false,
+                  profileOpen: false,
+                  newCompanyOpen: false,
+                  searchOpen: false,
+                });
+                router.replace("/login");
+                router.refresh();
+              }
+            }}
           >
-            <Avatar src={CURRENT_USER.avatar} alt="" />
-            <span className="hidden sm:inline">{CURRENT_USER.name}</span>
+            Sign out
           </Button>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="border-border border-b px-4">
+        <TabsList className="border-border max-w-full overflow-x-auto border-b px-4">
           {TABS.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value}>
               {tab.label}

@@ -1,4 +1,9 @@
-export const SEGMENTS = ["Enterprise", "Mid-Market", "SMB", "Strategic"] as const;
+export const SEGMENTS = [
+  "Enterprise",
+  "Mid-Market",
+  "SMB",
+  "Strategic",
+] as const;
 
 export const STAGES = [
   "New Logo",
@@ -91,7 +96,15 @@ export const CURRENT_USER: Owner = {
 };
 
 export function ownerByName(name: string): Owner {
-  return OWNERS.find((owner) => owner.name === name) ?? OWNERS[0];
+  return (
+    OWNERS.find((owner) => owner.name === name) ?? {
+      name,
+      avatar: AVATARS[0],
+      email: "",
+      phone: "",
+      role: "Account owner",
+    }
+  );
 }
 
 export function profileByName(name: string): Owner {
@@ -385,7 +398,7 @@ export const INTERACTION_TYPES = [
   "Expansion",
 ] as const;
 
-export const ACTIVITY_WINDOWS = [7, 30, 60, 90] as const;
+export const ACTIVITY_WINDOWS = [0, 7, 30, 60, 90] as const;
 
 export type ActivityWindow = (typeof ACTIVITY_WINDOWS)[number];
 

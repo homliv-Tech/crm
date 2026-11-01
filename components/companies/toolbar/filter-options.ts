@@ -1,15 +1,16 @@
 import {
   ACTIVITY_WINDOWS,
-  OWNERS,
   SEGMENTS,
   SORT_OPTIONS,
   STAGES,
 } from "@/data/companies";
 import { ALL_OWNERS, ANY_STAGE } from "@/lib/companies";
 
-export const OWNER_OPTIONS = [
+export const ownerOptions = (companies: { owner: string }[]) => [
   { value: ALL_OWNERS, label: "All Owners" },
-  ...OWNERS.map((owner) => ({ value: owner.name, label: owner.name })),
+  ...[...new Set(companies.map((c) => c.owner))]
+    .sort()
+    .map((name) => ({ value: name, label: name })),
 ];
 
 export const STAGE_OPTIONS = [
@@ -19,7 +20,7 @@ export const STAGE_OPTIONS = [
 
 export const ACTIVITY_OPTIONS = ACTIVITY_WINDOWS.map((days) => ({
   value: String(days),
-  label: `${days} Days`,
+  label: days === 0 ? "All time" : `${days} Days`,
 }));
 
 export const SORT_MENU_OPTIONS = SORT_OPTIONS.map((option) => ({
