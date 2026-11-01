@@ -73,7 +73,7 @@ async function main() {
     ({ default: sharp } = await import("sharp"));
   } catch (error) {
     console.error("Missing dependency: sharp. Install it with:");
-    console.error("  npm i -S sharp");
+    console.error("  bun add sharp");
     console.error(error);
     process.exit(1);
   }
