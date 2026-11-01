@@ -33,25 +33,29 @@ type Dependencies = {
   ) => Promise<void>;
   allowAttempt: (action: "send" | "verify", email: string) => boolean;
 };
-// WorkOS also enforces provider-side limits. This cap bounds abuse per app process
-// without relying on potentially spoofed forwarding headers.
+// WorkOS enforces provider-side limits. Local limits are per recipient/action:
+// anonymous traffic must not exhaust a shared budget and lock out other users.
 export function createLoginLimiter() {
   const attempts = new Map<string, { count: number; until: number }>();
+  const maxBuckets = 10_000;
   return (action: "send" | "verify", email: string) => {
     const now = Date.now();
-    for (const [key, value] of attempts)
-      if (value.until <= now) attempts.delete(key);
-    const take = (key: string, limit: number) => {
-      const value = attempts.get(key) ?? { count: 0, until: now + 60_000 };
-      if (value.count >= limit) return false;
-      value.count++;
-      attempts.set(key, value);
-      return true;
-    };
-    return (
-      take(`global:${action}`, action === "send" ? 60 : 120) &&
-      take(`${action}:${email}`, action === "send" ? 3 : 10)
-    );
+    const key = `${action}:${email}`;
+    let bucket = attempts.get(key);
+    if (!bucket || bucket.until <= now) {
+      // Bound memory without rejecting unrelated recipients when storage fills.
+      // Oldest buckets may be evicted; WorkOS still enforces its own limits.
+      attempts.delete(key);
+      if (attempts.size >= maxBuckets) {
+        const oldest = attempts.keys().next().value;
+        if (oldest !== undefined) attempts.delete(oldest);
+      }
+      bucket = { count: 0, until: now + 60_000 };
+      attempts.set(key, bucket);
+    }
+    if (bucket.count >= (action === "send" ? 3 : 10)) return false;
+    bucket.count++;
+    return true;
   };
 }
 export function createLoginHandler(deps: Dependencies) {
