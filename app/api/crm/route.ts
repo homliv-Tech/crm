@@ -18,7 +18,7 @@ export async function GET() {
     return Response.json(
       {
         error:
-          "Could not load the CRM. Check DATABASE_URL and run npm run db:migrate.",
+          "Could not load the CRM. Check DATABASE_URL and run bun run db:migrate.",
       },
       { status: 503 },
     );
