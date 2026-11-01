@@ -259,7 +259,7 @@ test("invalid or expired provider codes and provider outages never save a sessio
     assert.ok(!f.calls.some((c) => c.name === "saveSession"));
   }
 });
-test("login throttling bounds both recipient attempts and total process requests", () => {
+test("login throttling limits each recipient and action independently", () => {
   const allow = createLoginLimiter();
   for (let i = 0; i < 3; i++)
     assert.equal(allow("send", "person@example.com"), true);
@@ -267,10 +267,45 @@ test("login throttling bounds both recipient attempts and total process requests
   for (let i = 0; i < 10; i++)
     assert.equal(allow("verify", "person@example.com"), true);
   assert.equal(allow("verify", "person@example.com"), false);
-  const global = createLoginLimiter();
-  for (let i = 0; i < 60; i++)
-    assert.equal(global("send", `person-${i}@example.com`), true);
-  assert.equal(global("send", "another@example.com"), false);
+});
+
+test("anonymous requests cannot consume another recipient's login allowance", () => {
+  const allow = createLoginLimiter();
+  for (let i = 0; i < 1000; i++) {
+    allow("send", "attacker@example.com");
+    allow("verify", "attacker@example.com");
+    assert.equal(allow("send", `random-${i}@example.com`), true);
+    assert.equal(allow("verify", `random-${i}@example.com`), true);
+  }
+  for (let i = 0; i < 3; i++)
+    assert.equal(allow("send", "legitimate@example.com"), true);
+  assert.equal(allow("send", "legitimate@example.com"), false);
+  for (let i = 0; i < 10; i++)
+    assert.equal(allow("verify", "legitimate@example.com"), true);
+  assert.equal(allow("verify", "legitimate@example.com"), false);
+});
+
+test("recipient budgets reset at the fixed window boundary, without rejected attempts extending it", (t) => {
+  let now = 0;
+  t.mock.method(Date, "now", () => now);
+  const allow = createLoginLimiter();
+  for (let i = 0; i < 3; i++)
+    assert.equal(allow("send", "person@example.com"), true);
+  now = 59_999;
+  assert.equal(allow("send", "person@example.com"), false);
+  now = 60_000;
+  assert.equal(allow("send", "person@example.com"), true);
+});
+
+test("limiter storage evicts old buckets instead of denying new recipients at capacity", () => {
+  const allow = createLoginLimiter();
+  for (let i = 0; i < 3; i++)
+    assert.equal(allow("send", "oldest@example.com"), true);
+  assert.equal(allow("send", "oldest@example.com"), false);
+  for (let i = 0; i < 10_000; i++)
+    assert.equal(allow("send", `random-${i}@example.com`), true);
+  assert.equal(allow("send", "oldest@example.com"), true);
+  assert.equal(allow("send", "new-recipient@example.com"), true);
 });
 
 test("active members can send and verify codes from old invitation links without reusing the token", async () => {
