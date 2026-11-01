@@ -43,6 +43,8 @@ async function json(
 }
 async function main() {
   await call("/api/crm", "GET", undefined, 401, false);
+  await call("/api/auth/access", "GET", undefined, 401, false);
+  await call("/api/crm/export", "POST", {}, 401, false);
   await call("/api/crm/companies", "POST", {}, 401, false);
   await call("/api/admin/users", "GET", undefined, 401, false);
   await call("/api/auth", "POST", { password: "retired-password" }, 410, false);

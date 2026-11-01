@@ -14,7 +14,8 @@ export const config = {
   matcher: [
     "/",
     "/login",
-    "/sign-in",
+    "/sign-in/:path*",
+    "/account/:path*",
     "/callback",
     "/access-denied",
     "/admin/:path*",

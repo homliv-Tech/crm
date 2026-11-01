@@ -29,7 +29,7 @@ export default function CompaniesHeader() {
 
   return (
     <header className="shrink-0">
-      <div className="flex items-center justify-between gap-2 px-4 py-[14px]">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-[14px]">
         <div className="flex min-w-0 items-center gap-2">
           <Button
             variant="secondary"
@@ -49,7 +49,7 @@ export default function CompaniesHeader() {
           </span>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Button
             variant="secondary"
             size="icon"
@@ -65,6 +65,7 @@ export default function CompaniesHeader() {
           >
             {user.name} · {user.role}
           </span>
+          <Button href="/account/security">Security</Button>
           {user.role === "admin" && (
             <Button href="/admin">Users and access</Button>
           )}
