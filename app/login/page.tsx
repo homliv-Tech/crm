@@ -1,3 +1,4 @@
+import Link from "next/link";
 import LoginForm from "@/components/auth/login-form";
 import { redirect } from "next/navigation";
 import { getAccess } from "@/lib/auth";
@@ -23,6 +24,19 @@ export default async function LoginPage({
         {authConfigured() ? (
           <>
             <LoginForm invitationToken={invitationToken} />
+            <div className="border-border mt-6 border-t pt-5">
+              <Link
+                href="/sign-in/passkey"
+                prefetch={false}
+                className="border-border block rounded-lg border px-4 py-3 text-center text-sm"
+              >
+                Sign in with a passkey
+              </Link>
+              <p className="text-subtle mt-2 text-xs">
+                Opens WorkOS to use your passkey. New teammates should accept
+                their invitation with an email code first.
+              </p>
+            </div>
             {access.status === 503 && (
               <p role="status" className="mt-4 text-sm">
                 {access.error}

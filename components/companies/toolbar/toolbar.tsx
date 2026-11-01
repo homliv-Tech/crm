@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Button from "@/components/_ui/button";
 import FilterMenu from "@/components/_common/filter-menu";
 import MobileFilters from "./mobile-filters";
@@ -10,13 +11,13 @@ import {
   STAGE_OPTIONS,
 } from "./filter-options";
 import type { SortKey } from "@/data/companies";
-import { TODAY, companiesCsvRows, filterCompanies } from "@/lib/companies";
-import { downloadCsv } from "@/lib/csv";
+import { TODAY } from "@/lib/companies";
 import { useCompaniesStore } from "@/stores/companies-store";
 import ShareIcon from "@/public/assets/images/companies/toolbar/share.svg";
 import PlusIcon from "@/public/assets/images/_common/plus.svg";
 
 export default function CompaniesToolbar() {
+  const [exporting, setExporting] = useState(false);
   const canWrite = useCompaniesStore((s) => s.canWrite);
   const companies = useCompaniesStore((state) => state.companies);
   const sortBy = useCompaniesStore((state) => state.sortBy);
@@ -33,15 +34,22 @@ export default function CompaniesToolbar() {
     (state) => state.setNewCompanyOpen,
   );
 
-  function exportCsv() {
-    const { companies } = useCompaniesStore.getState();
-    const visible = filterCompanies(companies, {
-      sortBy,
-      owner,
-      stage,
-      activityWindow,
-    });
-    downloadCsv(`companies-${TODAY}.csv`, companiesCsvRows(visible));
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const blob = await useCompaniesStore.getState().exportCompanies();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `companies-${TODAY}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
   }
 
   return (
@@ -76,9 +84,14 @@ export default function CompaniesToolbar() {
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
-        <Button variant="secondary" size="sm" onClick={exportCsv}>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={exporting}
+          onClick={() => void exportCsv()}
+        >
           <ShareIcon aria-hidden className="size-3" />
-          Export
+          {exporting ? "Exporting…" : "Export"}
         </Button>
         <Button
           variant="primary"

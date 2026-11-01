@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { type Company, type SortKey } from "@/data/companies";
 import type { CrmSnapshot } from "@/lib/crm/types";
 import type { Entity } from "@/lib/crm/validation";
+import { isRole } from "@/lib/access-policy";
 import { DEFAULT_FILTERS } from "@/lib/companies";
 
 type CompaniesState = {
@@ -10,6 +11,11 @@ type CompaniesState = {
   deals: CrmSnapshot["deals"];
   tasks: CrmSnapshot["tasks"];
   activities: CrmSnapshot["activities"];
+  accessState: "checking" | "allowed" | "denied" | "unavailable";
+  accessEpoch: number;
+  checkAccess: (hide?: boolean) => Promise<boolean>;
+  blockAccess: (state: "denied" | "unavailable", error: string) => void;
+  exportCompanies: () => Promise<Blob | null>;
   canWrite: boolean;
   loading: boolean;
   saving: boolean;
@@ -60,27 +66,85 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   deals: [],
   tasks: [],
   activities: [],
+  accessState: "checking",
+  accessEpoch: 0,
   canWrite: false,
   loading: true,
   saving: false,
   error: null,
+  blockAccess: (accessState, error) =>
+    set((state) => ({
+      accessState,
+      accessEpoch: state.accessEpoch + 1,
+      error,
+      companies: [],
+      contacts: [],
+      deals: [],
+      tasks: [],
+      activities: [],
+      canWrite: false,
+      loading: false,
+      saving: false,
+      selectedIds: [],
+      detailId: null,
+      detailOpen: false,
+      profileName: null,
+      profileOpen: false,
+      newCompanyOpen: false,
+      searchOpen: false,
+      unreadNotificationIds: [],
+    })),
+  checkAccess: async (hide = false) => {
+    if (hide)
+      set((state) => ({
+        accessState: "checking",
+        accessEpoch: state.accessEpoch + 1,
+        loading: true,
+      }));
+    const epoch = get().accessEpoch;
+    try {
+      const response = await fetch("/api/auth/access", {
+        cache: "no-store",
+        signal: AbortSignal.timeout(5000),
+      });
+      if (epoch !== get().accessEpoch) return false;
+      if (!response.ok) {
+        get().blockAccess(
+          [401, 403].includes(response.status) ? "denied" : "unavailable",
+          "Workspace access is no longer available. Sign in again or contact your administrator.",
+        );
+        return false;
+      }
+      const data = await response.json();
+      if (epoch !== get().accessEpoch) return false;
+      if (!isRole(data.role)) throw new Error("Invalid access response.");
+      set({
+        accessState: "allowed",
+        canWrite: data.role === "admin" || data.role === "member",
+        error: null,
+      });
+      return true;
+    } catch {
+      if (epoch === get().accessEpoch)
+        get().blockAccess(
+          "unavailable",
+          "Could not verify workspace access. Reconnect and try again.",
+        );
+      return false;
+    }
+  },
   refresh: async () => {
+    const epoch = get().accessEpoch;
     try {
       const response = await fetch("/api/crm", { cache: "no-store" });
       const data = await response.json();
+      if (epoch !== get().accessEpoch) return;
       if (!response.ok) {
-        if ([401, 403].includes(response.status))
-          set({
-            companies: [],
-            contacts: [],
-            deals: [],
-            tasks: [],
-            activities: [],
-            canWrite: false,
-            detailOpen: false,
-            newCompanyOpen: false,
-          });
-        throw new Error(data.error);
+        get().blockAccess(
+          [401, 403].includes(response.status) ? "denied" : "unavailable",
+          data.error || "Could not load CRM records.",
+        );
+        return;
       }
       set({
         ...data,
@@ -88,20 +152,59 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
         loading: false,
         error: null,
       });
-    } catch (error) {
-      set({
-        loading: false,
-        error:
-          error instanceof Error ? error.message : "Could not load the CRM.",
+    } catch {
+      if (epoch === get().accessEpoch)
+        get().blockAccess(
+          "unavailable",
+          "Could not verify workspace access. Reconnect and try again.",
+        );
+    }
+  },
+  exportCompanies: async () => {
+    if (get().accessState !== "allowed") return null;
+    const epoch = get().accessEpoch;
+    const { sortBy, owner, stage, activityWindow } = get();
+    try {
+      const response = await fetch("/api/crm/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sortBy, owner, stage, activityWindow }),
       });
+      if (epoch !== get().accessEpoch || get().accessState !== "allowed")
+        return null;
+      if (!response.ok) {
+        if ([401, 403].includes(response.status))
+          get().blockAccess(
+            "denied",
+            "Your workspace access has been revoked.",
+          );
+        else
+          get().blockAccess(
+            "unavailable",
+            "Could not verify access for export. Please try again.",
+          );
+        return null;
+      }
+      const blob = await response.blob();
+      return epoch === get().accessEpoch && get().accessState === "allowed"
+        ? blob
+        : null;
+    } catch {
+      if (epoch === get().accessEpoch)
+        get().blockAccess(
+          "unavailable",
+          "Could not verify access for export. Reconnect and try again.",
+        );
+      return null;
     }
   },
   mutate: async (entity, method, data) => {
-    if (!get().canWrite) {
+    if (get().accessState !== "allowed" || !get().canWrite) {
       set({ error: "Your role has read-only access." });
       return false;
     }
     if (get().saving) return false;
+    const epoch = get().accessEpoch;
     set({ saving: true, error: null });
     try {
       const response = await fetch(`/api/crm/${entity}`, {
@@ -110,8 +213,16 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
         body: JSON.stringify(data),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
+      if (epoch !== get().accessEpoch) return false;
+      if (!response.ok) {
+        if (response.status === 401)
+          get().blockAccess("denied", "Sign in to your workspace.");
+        // A 403 may be a viewer role change or a revoked membership: check read access.
+        if (response.status === 403) await get().checkAccess();
+        throw new Error(result.error);
+      }
       await get().refresh();
+      if (get().accessState !== "allowed") return false;
       if (get().error)
         set({
           error:
@@ -119,10 +230,11 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
         });
       return true;
     } catch (error) {
-      set({
-        error:
-          error instanceof Error ? error.message : "Could not save changes.",
-      });
+      if (epoch === get().accessEpoch)
+        set({
+          error:
+            error instanceof Error ? error.message : "Could not save changes.",
+        });
       return false;
     } finally {
       set({ saving: false });

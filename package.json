@@ -24,6 +24,7 @@
     "@neondatabase/serverless": "^1.2.0",
     "@rive-app/canvas": "^2.31.0",
     "@rive-app/react-canvas": "^4.31.0",
+    "@simplewebauthn/browser": "^14.0.0",
     "@workos-inc/authkit-nextjs": "^4.6.2",
     "@workos-inc/node": "^12.1.0",
     "class-variance-authority": "^0.7.1",
