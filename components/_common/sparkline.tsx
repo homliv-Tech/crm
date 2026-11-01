@@ -34,7 +34,9 @@ export default function Sparkline({ values, className }: SparklineProps) {
           key={index}
           className={cn(
             "w-1 shrink-0 rounded-[1px]",
-            HEIGHT_CLASS[Math.min(14, Math.max(1, Math.round(value)))],
+            value === 0
+              ? "h-0"
+              : HEIGHT_CLASS[Math.min(14, Math.max(1, Math.round(value)))],
             TREND_PATTERN[index % TREND_PATTERN.length]
               ? "bg-trend"
               : "bg-trend-muted",

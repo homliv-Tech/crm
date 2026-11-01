@@ -12,8 +12,8 @@ import Button from "@/components/_ui/button";
 import { cn } from "@/lib/utils";
 import BuildingIcon from "@/public/assets/images/companies/sidebar/building.svg";
 
-const MAX_BYTES = 2 * 1024 * 1024;
-const ACCEPTED = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+const MAX_BYTES = 500 * 1024;
+const ACCEPTED = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
 type LogoUploadProps = {
   value: string | null;
@@ -34,11 +34,11 @@ export default function LogoUpload({
   function readFile(file: File | undefined) {
     if (!file) return;
     if (!ACCEPTED.includes(file.type)) {
-      setError("Use a PNG, JPG, WebP or SVG image.");
+      setError("Use a PNG, JPG, WebP or GIF image.");
       return;
     }
     if (file.size > MAX_BYTES) {
-      setError("Keep the image under 2 MB.");
+      setError("Keep the image under 500 KB.");
       return;
     }
     const reader = new FileReader();
@@ -123,7 +123,7 @@ export default function LogoUpload({
           )}
         >
           {error ??
-            "PNG, JPG, WebP or SVG up to 2 MB. You can also drop a file here."}
+            "PNG, JPG, WebP or GIF up to 500 KB. You can also drop a file here."}
         </span>
       </div>
 

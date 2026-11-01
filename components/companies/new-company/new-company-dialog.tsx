@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, type FormEvent } from "react";
-import Avatar from "@/components/_ui/avatar";
 import Button from "@/components/_ui/button";
 import {
   Dialog,
@@ -27,8 +26,6 @@ import FormSection from "./form-section";
 import LogoUpload from "./logo-upload";
 import {
   DEFAULT_TREND,
-  INTERACTION_TYPES,
-  OWNERS,
   SEGMENTS,
   STAGES,
   type Company,
@@ -39,6 +36,8 @@ import { TODAY, daysSince } from "@/lib/companies";
 import { slugify } from "@/lib/utils";
 import { useCompaniesStore } from "@/stores/companies-store";
 import PlusIcon from "@/public/assets/images/_common/plus.svg";
+
+const INTERACTION_TYPES = ["Note", "Call", "Email", "Meeting"] as const;
 
 type FormState = {
   logo: string | null;
@@ -58,7 +57,7 @@ const EMPTY_FORM: FormState = {
   name: "",
   segment: SEGMENTS[0],
   stage: STAGES[0],
-  owner: OWNERS[0].name,
+  owner: "Unassigned",
   pipelineValue: "",
   openDeals: "1",
   winProbability: 50,
@@ -70,6 +69,8 @@ export default function NewCompanyDialog() {
   const open = useCompaniesStore((state) => state.newCompanyOpen);
   const setOpen = useCompaniesStore((state) => state.setNewCompanyOpen);
   const addCompany = useCompaniesStore((state) => state.addCompany);
+  const saving = useCompaniesStore((state) => state.saving);
+  const error = useCompaniesStore((state) => state.error);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [nameError, setNameError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -78,7 +79,7 @@ export default function NewCompanyDialog() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = form.name.trim();
     if (!name) {
@@ -94,7 +95,7 @@ export default function NewCompanyDialog() {
       tags: [form.segment, form.stage],
       owner: form.owner,
       openDeals: Math.max(0, Math.round(Number(form.openDeals) || 0)),
-      pipelineValue: Math.max(0, Math.round(Number(form.pipelineValue) || 0)),
+      pipelineValue: Math.max(0, Number(form.pipelineValue) || 0),
       winProbability: form.winProbability,
       trend: DEFAULT_TREND,
       lastInteraction: {
@@ -104,7 +105,7 @@ export default function NewCompanyDialog() {
       activityDays: daysSince(form.interactionDate || TODAY),
     };
 
-    addCompany(company);
+    await addCompany(company);
   }
 
   return (
@@ -116,7 +117,7 @@ export default function NewCompanyDialog() {
           setNameError(null);
         }}
       >
-        <form onSubmit={handleSubmit} noValidate className="flex flex-col">
+        <form onSubmit={handleSubmit} className="flex flex-col">
           <DialogHeader>
             <DialogTitle>New Company</DialogTitle>
             <DialogDescription>
@@ -194,24 +195,14 @@ export default function NewCompanyDialog() {
 
           <FormSection title="Ownership & deal">
             <Field label="Account owner" htmlFor="company-owner">
-              <Select
+              <Input
+                id="company-owner"
                 value={form.owner}
-                onValueChange={(value) => update("owner", value)}
-              >
-                <SelectTrigger id="company-owner">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {OWNERS.map((owner) => (
-                    <SelectItem key={owner.name} value={owner.name}>
-                      <span className="flex items-center gap-2">
-                        <Avatar src={owner.avatar} alt="" />
-                        {owner.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(event) => update("owner", event.target.value)}
+                required
+                maxLength={200}
+                placeholder="Account owner"
+              />
             </Field>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -227,7 +218,7 @@ export default function NewCompanyDialog() {
                     id="company-pipeline"
                     type="number"
                     min={0}
-                    step={1000}
+                    step="0.01"
                     inputMode="numeric"
                     value={form.pipelineValue}
                     onChange={(event) =>
@@ -243,6 +234,7 @@ export default function NewCompanyDialog() {
                   id="company-deals"
                   type="number"
                   min={0}
+                  max={100}
                   inputMode="numeric"
                   value={form.openDeals}
                   onChange={(event) => update("openDeals", event.target.value)}
@@ -315,15 +307,20 @@ export default function NewCompanyDialog() {
             </div>
           </FormSection>
 
+          {error && (
+            <p role="alert" className="px-5 py-3 text-sm text-red-400">
+              {error}
+            </p>
+          )}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="subtle" size="sm">
                 Cancel
               </Button>
             </DialogClose>
-            <Button variant="primary" size="sm" type="submit">
+            <Button variant="primary" size="sm" type="submit" disabled={saving}>
               <PlusIcon aria-hidden className="size-3" />
-              Create Company
+              {saving ? "Saving…" : "Create Company"}
             </Button>
           </DialogFooter>
         </form>

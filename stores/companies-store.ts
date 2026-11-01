@@ -1,10 +1,24 @@
 import { create } from "zustand";
-import { COMPANIES, type Company, type SortKey } from "@/data/companies";
-import { NOTIFICATIONS } from "@/data/notifications";
+import { type Company, type SortKey } from "@/data/companies";
+import type { CrmSnapshot } from "@/lib/crm/types";
+import type { Entity } from "@/lib/crm/validation";
 import { DEFAULT_FILTERS } from "@/lib/companies";
 
 type CompaniesState = {
-  companies: Company[];
+  companies: CrmSnapshot["companies"];
+  contacts: CrmSnapshot["contacts"];
+  deals: CrmSnapshot["deals"];
+  tasks: CrmSnapshot["tasks"];
+  activities: CrmSnapshot["activities"];
+  loading: boolean;
+  saving: boolean;
+  error: string | null;
+  refresh: () => Promise<void>;
+  mutate: (
+    entity: Entity,
+    method: "POST" | "PATCH" | "DELETE",
+    data: unknown,
+  ) => Promise<boolean>;
   sortBy: SortKey;
   owner: string;
   stage: string;
@@ -36,13 +50,62 @@ type CompaniesState = {
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   setActiveTab: (tab: string) => void;
-  addCompany: (company: Company) => void;
+  addCompany: (company: Company) => Promise<boolean>;
 };
 
-export const useCompaniesStore = create<CompaniesState>((set) => ({
-  companies: COMPANIES,
+export const useCompaniesStore = create<CompaniesState>((set, get) => ({
+  companies: [],
+  contacts: [],
+  deals: [],
+  tasks: [],
+  activities: [],
+  loading: true,
+  saving: false,
+  error: null,
+  refresh: async () => {
+    try {
+      const response = await fetch("/api/crm", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      set({ ...data, loading: false, error: null });
+    } catch (error) {
+      set({
+        loading: false,
+        error:
+          error instanceof Error ? error.message : "Could not load the CRM.",
+      });
+    }
+  },
+  mutate: async (entity, method, data) => {
+    if (get().saving) return false;
+    set({ saving: true, error: null });
+    try {
+      const response = await fetch(`/api/crm/${entity}`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      await get().refresh();
+      if (get().error)
+        set({
+          error:
+            "Changes saved, but the list could not refresh. Click Retry to reload.",
+        });
+      return true;
+    } catch (error) {
+      set({
+        error:
+          error instanceof Error ? error.message : "Could not save changes.",
+      });
+      return false;
+    } finally {
+      set({ saving: false });
+    }
+  },
   ...DEFAULT_FILTERS,
-  selectedIds: ["microsoft"],
+  selectedIds: [],
   detailId: null,
   detailOpen: false,
   profileName: null,
@@ -50,9 +113,7 @@ export const useCompaniesStore = create<CompaniesState>((set) => ({
   newCompanyOpen: false,
   sidebarOpen: false,
   searchOpen: false,
-  unreadNotificationIds: NOTIFICATIONS.filter((item) => item.unread).map(
-    (item) => item.id,
-  ),
+  unreadNotificationIds: [],
   activeTab: "companies",
   setSortBy: (sortBy) => set({ sortBy }),
   setOwner: (owner) => set({ owner }),
@@ -83,9 +144,9 @@ export const useCompaniesStore = create<CompaniesState>((set) => ({
     })),
   markAllNotificationsRead: () => set({ unreadNotificationIds: [] }),
   setActiveTab: (activeTab) => set({ activeTab }),
-  addCompany: (company) =>
-    set((state) => ({
-      companies: [company, ...state.companies],
-      newCompanyOpen: false,
-    })),
+  addCompany: async (company) => {
+    const saved = await get().mutate("companies", "POST", company);
+    if (saved) set({ newCompanyOpen: false });
+    return saved;
+  },
 }));

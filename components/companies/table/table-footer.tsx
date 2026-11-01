@@ -1,27 +1,27 @@
-import PlusIcon from "@/public/assets/images/_common/plus.svg";
-
-type TableFooterProps = {
-  count: number;
-};
-
-const CALCULATIONS = ["Sum of pipeline", "Avg win probality", "Add Calculation"];
-
-export default function TableFooter({ count }: TableFooterProps) {
+"use client";
+import { useCompaniesStore } from "@/stores/companies-store";
+import { filterCompanies } from "@/lib/companies";
+import { money } from "@/lib/crm/format";
+export default function TableFooter({ count }: { count: number }) {
+  const state = useCompaniesStore();
+  const visible = filterCompanies(state.companies, state);
+  const sum = visible.reduce((total, c) => total + c.pipelineValue, 0);
+  const average = visible.length
+    ? Math.round(
+        visible.reduce((total, c) => total + c.winProbability, 0) /
+          visible.length,
+      )
+    : 0;
   return (
-    <div className="caption-style grid shrink-0 grid-cols-2 gap-px border-b border-border bg-background p-px sm:grid-cols-4">
-      <div className="flex items-center gap-2 p-3 outline-1 outline-border">
-        <span className="text-foreground">{count}</span>
-        <span className="text-muted-foreground">Companies in view</span>
-      </div>
-      {CALCULATIONS.map((label) => (
-        <div
-          key={label}
-          className="flex items-center gap-2 p-3 text-muted-foreground outline-1 outline-border"
-        >
-          <PlusIcon aria-hidden className="size-3 text-muted-foreground" />
-          {label}
-        </div>
-      ))}
+    <div className="border-border text-subtle grid shrink-0 grid-cols-1 gap-2 border-t p-3 text-xs sm:grid-cols-3">
+      <p>{count} companies in view</p>
+      <p>
+        Pipeline: <span className="text-foreground">{money(sum)}</span>
+      </p>
+      <p>
+        Average win probability:{" "}
+        <span className="text-foreground">{average}%</span>
+      </p>
     </div>
   );
 }

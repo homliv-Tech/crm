@@ -11,6 +11,7 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
   metadataBase: new URL(SITE_URL),
   ...pageMetadata({
     title: SITE_NAME,
