@@ -14,6 +14,7 @@ import NewCompanyDialog from "./new-company/new-company-dialog";
 import CommandMenu from "./command-menu/command-menu";
 
 export default function Companies() {
+  const canWrite = useCompaniesStore((s) => s.canWrite);
   const tab = useCompaniesStore((s) => s.activeTab);
   const error = useCompaniesStore((s) => s.error);
   const loading = useCompaniesStore((s) => s.loading);
@@ -25,6 +26,12 @@ export default function Companies() {
     <CrmEditorProvider>
       <section id="companies" className="flex min-h-0 min-w-0 flex-1 flex-col">
         <CompaniesHeader />
+        {!loading && !canWrite && !error && (
+          <p className="text-subtle border-border border-b px-4 py-2 text-xs">
+            Read-only access. Contact an administrator if you need to edit
+            records.
+          </p>
+        )}
         {error && (
           <div
             role="alert"

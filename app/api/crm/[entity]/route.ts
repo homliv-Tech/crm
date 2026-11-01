@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
-import { isAuthenticated } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import * as tables from "@/lib/db/schema";
 import { entitySchemas, type Entity } from "@/lib/crm/validation";
@@ -9,11 +9,8 @@ import { splitOpportunityValues } from "@/lib/crm/money";
 
 type Context = { params: Promise<{ entity: string }> };
 async function mutate(request: Request, context: Context) {
-  if (!(await isAuthenticated()))
-    return Response.json(
-      { error: "Sign in to your workspace." },
-      { status: 401 },
-    );
+  const access = await requirePermission("crm:write");
+  if (access instanceof Response) return access;
   if (request.headers.get("origin") !== new URL(request.url).origin)
     return Response.json({ error: "Invalid request origin." }, { status: 403 });
   const { entity } = await context.params;

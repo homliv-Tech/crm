@@ -37,10 +37,15 @@ export const selectClass =
 
 export function CrmEditorProvider({ children }: { children: ReactNode }) {
   const [editor, setEditor] = useState<Editor | null>(null);
+  const canWrite = useCompaniesStore((s) => s.canWrite);
   return (
-    <EditorContext.Provider value={setEditor}>
+    <EditorContext.Provider
+      value={(editor) => {
+        if (canWrite) setEditor(editor);
+      }}
+    >
       {children}
-      {editor && (
+      {editor && canWrite && (
         <RecordForm
           key={`${editor.entity}-${editor.record?.id ?? "new"}`}
           editor={editor}

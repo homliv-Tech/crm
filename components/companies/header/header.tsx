@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { logout } from "@/app/actions";
+import { useWorkspaceUser } from "@/components/auth/workspace-access";
 
 import Button from "@/components/_ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/_ui/tabs";
@@ -20,7 +21,7 @@ const TABS = [
 ];
 
 export default function CompaniesHeader() {
-  const router = useRouter();
+  const user = useWorkspaceUser();
   const activeTab = useCompaniesStore((state) => state.activeTab);
   const setActiveTab = useCompaniesStore((state) => state.setActiveTab);
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
@@ -58,30 +59,18 @@ export default function CompaniesHeader() {
           >
             <SearchIcon aria-hidden className="size-3.5" />
           </Button>
-          <Button
-            onClick={async () => {
-              const response = await fetch("/api/auth", { method: "DELETE" });
-              if (response.ok) {
-                useCompaniesStore.setState({
-                  companies: [],
-                  contacts: [],
-                  deals: [],
-                  tasks: [],
-                  activities: [],
-                  loading: true,
-                  selectedIds: [],
-                  detailOpen: false,
-                  profileOpen: false,
-                  newCompanyOpen: false,
-                  searchOpen: false,
-                });
-                router.replace("/login");
-                router.refresh();
-              }
-            }}
+          <span
+            className="text-subtle hidden max-w-52 truncate text-xs sm:block"
+            title={user.email}
           >
-            Sign out
-          </Button>
+            {user.name} · {user.role}
+          </span>
+          {user.role === "admin" && (
+            <Button href="/admin">Users and access</Button>
+          )}
+          <form action={logout}>
+            <Button type="submit">Sign out</Button>
+          </form>
         </div>
       </div>
 

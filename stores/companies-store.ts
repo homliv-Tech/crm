@@ -10,6 +10,7 @@ type CompaniesState = {
   deals: CrmSnapshot["deals"];
   tasks: CrmSnapshot["tasks"];
   activities: CrmSnapshot["activities"];
+  canWrite: boolean;
   loading: boolean;
   saving: boolean;
   error: string | null;
@@ -59,6 +60,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   deals: [],
   tasks: [],
   activities: [],
+  canWrite: false,
   loading: true,
   saving: false,
   error: null,
@@ -66,8 +68,26 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
     try {
       const response = await fetch("/api/crm", { cache: "no-store" });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      set({ ...data, loading: false, error: null });
+      if (!response.ok) {
+        if ([401, 403].includes(response.status))
+          set({
+            companies: [],
+            contacts: [],
+            deals: [],
+            tasks: [],
+            activities: [],
+            canWrite: false,
+            detailOpen: false,
+            newCompanyOpen: false,
+          });
+        throw new Error(data.error);
+      }
+      set({
+        ...data,
+        canWrite: data.role === "admin" || data.role === "member",
+        loading: false,
+        error: null,
+      });
     } catch (error) {
       set({
         loading: false,
@@ -77,6 +97,10 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
     }
   },
   mutate: async (entity, method, data) => {
+    if (!get().canWrite) {
+      set({ error: "Your role has read-only access." });
+      return false;
+    }
     if (get().saving) return false;
     set({ saving: true, error: null });
     try {
@@ -133,7 +157,8 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   openProfile: (profileName) =>
     set({ profileName, profileOpen: true, detailOpen: false }),
   closeProfile: () => set({ profileOpen: false }),
-  setNewCompanyOpen: (newCompanyOpen) => set({ newCompanyOpen }),
+  setNewCompanyOpen: (newCompanyOpen) =>
+    set({ newCompanyOpen: newCompanyOpen && get().canWrite }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setSearchOpen: (searchOpen) => set({ searchOpen }),
   markNotificationRead: (id) =>

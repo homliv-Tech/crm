@@ -17,6 +17,7 @@ import ShareIcon from "@/public/assets/images/companies/toolbar/share.svg";
 import PlusIcon from "@/public/assets/images/_common/plus.svg";
 
 export default function CompaniesToolbar() {
+  const canWrite = useCompaniesStore((s) => s.canWrite);
   const companies = useCompaniesStore((state) => state.companies);
   const sortBy = useCompaniesStore((state) => state.sortBy);
   const owner = useCompaniesStore((state) => state.owner);
@@ -82,6 +83,7 @@ export default function CompaniesToolbar() {
         <Button
           variant="primary"
           size="sm"
+          disabled={!canWrite}
           onClick={() => setNewCompanyOpen(true)}
         >
           <PlusIcon aria-hidden className="size-3" />

@@ -12,12 +12,18 @@ function set(name: string, value: string) {
     : `${text}\n${line}\n`;
 }
 if (!values.DATABASE_URL) set("DATABASE_URL", "");
-if ((values.CRM_PASSWORD?.length ?? 0) < 12)
-  set("CRM_PASSWORD", randomBytes(20).toString("base64url"));
-if ((values.SESSION_SECRET?.length ?? 0) < 32)
-  set("SESSION_SECRET", randomBytes(48).toString("base64url"));
+if ((values.WORKOS_COOKIE_PASSWORD?.length ?? 0) < 32)
+  set("WORKOS_COOKIE_PASSWORD", randomBytes(48).toString("base64url"));
+for (const name of [
+  "WORKOS_API_KEY",
+  "WORKOS_CLIENT_ID",
+  "WORKOS_ORGANIZATION_ID",
+])
+  if (!values[name]) set(name, "");
+if (!values.NEXT_PUBLIC_WORKOS_REDIRECT_URI)
+  set("NEXT_PUBLIC_WORKOS_REDIRECT_URI", "http://localhost:3000/callback");
 writeFileSync(path, text);
 chmodSync(path, 0o600);
 console.log(
-  "Workspace credentials are saved in .env.local. Set DATABASE_URL to your writable Neon connection string. Use CRM_PASSWORD to sign in; keep this file private.",
+  "Saved .env.local with a private WorkOS cookie password. Set DATABASE_URL and your WorkOS API key, client ID, and organization ID. See README.md for WorkOS setup.",
 );

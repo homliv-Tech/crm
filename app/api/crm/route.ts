@@ -1,15 +1,15 @@
-import { isAuthenticated } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { getSnapshot } from "@/lib/crm/snapshot";
 export async function GET() {
-  if (!(await isAuthenticated()))
-    return Response.json(
-      { error: "Sign in to your workspace." },
-      { status: 401 },
-    );
+  const access = await requirePermission("crm:read");
+  if (access instanceof Response) return access;
   try {
-    return Response.json(await getSnapshot(), {
-      headers: { "Cache-Control": "private, no-store" },
-    });
+    return Response.json(
+      { ...(await getSnapshot()), role: access.role },
+      {
+        headers: { "Cache-Control": "private, no-store" },
+      },
+    );
   } catch (error) {
     console.error(
       "CRM database read failed",
