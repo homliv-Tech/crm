@@ -69,7 +69,7 @@ export default function CrmViews() {
           </select>
         </label>
         <Button
-          disabled={empty || state.saving}
+          disabled={empty || state.saving || !state.canWrite}
           variant="primary"
           onClick={() => edit({ entity, companyId: companyId || undefined })}
         >
@@ -105,6 +105,7 @@ export default function CrmViews() {
                       className="border-border bg-background rounded-lg border p-3"
                     >
                       <button
+                        disabled={!state.canWrite}
                         className="mb-2 text-left text-sm font-medium hover:underline"
                         onClick={() =>
                           edit({ entity: "deals", record: { ...deal } })
@@ -125,7 +126,7 @@ export default function CrmViews() {
                       <select
                         aria-label={`Stage for ${deal.title}`}
                         className={selectClass}
-                        disabled={state.saving}
+                        disabled={state.saving || !state.canWrite}
                         value={deal.stage}
                         onChange={(e) =>
                           void state.mutate("deals", "PATCH", {
@@ -181,6 +182,7 @@ export default function CrmViews() {
                     <td className="p-3">{c.role || "—"}</td>
                     <td className="p-3">
                       <Button
+                        disabled={!state.canWrite}
                         onClick={() =>
                           edit({ entity: "contacts", record: { ...c } })
                         }
@@ -224,7 +226,7 @@ export default function CrmViews() {
                   type="checkbox"
                   aria-label={`Complete ${t.title}`}
                   checked={t.completed}
-                  disabled={state.saving}
+                  disabled={state.saving || !state.canWrite}
                   onChange={(e) =>
                     void state.mutate("tasks", "PATCH", {
                       ...t,
@@ -244,6 +246,7 @@ export default function CrmViews() {
                   </p>
                 </div>
                 <Button
+                  disabled={!state.canWrite}
                   onClick={() => edit({ entity: "tasks", record: { ...t } })}
                 >
                   Edit
@@ -273,6 +276,7 @@ export default function CrmViews() {
                     {a.type} · {companyName(a.companyId)}
                   </span>
                   <Button
+                    disabled={!state.canWrite}
                     onClick={() =>
                       edit({ entity: "activities", record: { ...a } })
                     }

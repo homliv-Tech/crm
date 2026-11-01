@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { config } from "dotenv";
 config({ path: ".env.local", quiet: true });
@@ -41,36 +42,19 @@ async function json(
   return (await call(path, method, data, expected)).json();
 }
 async function main() {
-  assert.ok(
-    process.env.CRM_PASSWORD,
-    "Set CRM_PASSWORD before running integration tests.",
-  );
-  assert.equal(
-    (await call("/", "GET", undefined, 307, false)).headers.get("location"),
-    "/login",
-  );
   await call("/api/crm", "GET", undefined, 401, false);
   await call("/api/crm/companies", "POST", {}, 401, false);
-  await call("/api/auth", "POST", { password: "incorrect" }, 401, false);
-  await call(
-    "/api/auth",
-    "POST",
-    { password: process.env.CRM_PASSWORD },
-    403,
-    false,
-    "https://other-origin.example",
-  );
-  const login = await call(
-    "/api/auth",
-    "POST",
-    { password: process.env.CRM_PASSWORD },
-    200,
-    false,
-  );
-  const session = login.headers.get("set-cookie");
-  assert.ok(session?.includes("HttpOnly"));
-  assert.ok(session?.includes("SameSite=strict"));
-  cookie = session!.split(";")[0];
+  await call("/api/admin/users", "GET", undefined, 401, false);
+  await call("/api/auth", "POST", { password: "retired-password" }, 410, false);
+  if (!process.env.TEST_COOKIE_FILE) {
+    assert.ok(
+      authOnly,
+      "Set TEST_COOKIE_FILE to a private file containing an admin/member WorkOS Cookie header, or use --auth-only.",
+    );
+    console.log("Unauthenticated WorkOS access checks passed.");
+    return;
+  }
+  cookie = readFileSync(process.env.TEST_COOKIE_FILE, "utf8").trim();
   await call("/", "GET", undefined, 200);
   await call("/api/crm/unknown", "POST", {}, 404);
   await call(
@@ -215,7 +199,6 @@ async function main() {
       );
     companyId = "";
   }
-  await call("/api/auth", "DELETE");
   console.log(
     authOnly
       ? "Authentication and API validation checks passed."

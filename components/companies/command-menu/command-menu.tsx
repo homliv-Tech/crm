@@ -18,6 +18,7 @@ import { useCompaniesStore } from "@/stores/companies-store";
 import PlusIcon from "@/public/assets/images/_common/plus.svg";
 
 export default function CommandMenu() {
+  const canWrite = useCompaniesStore((s) => s.canWrite);
   const open = useCompaniesStore((state) => state.searchOpen);
   const setOpen = useCompaniesStore((state) => state.setSearchOpen);
   const companies = useCompaniesStore((state) => state.companies);
@@ -86,6 +87,7 @@ export default function CommandMenu() {
             <CommandItem
               value="new-company"
               keywords={["New Company", "Add", "Create"]}
+              disabled={!canWrite}
               onSelect={() => run(() => setNewCompanyOpen(true))}
             >
               <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-md shadow-[0px_0px_0px_1px_#232323]">

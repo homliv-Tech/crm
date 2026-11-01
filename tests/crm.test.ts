@@ -1,6 +1,5 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { signSession, validSession } from "../lib/session";
 import {
   companyInput,
   contactInput,
@@ -22,16 +21,6 @@ test("initial opportunity values preserve cents when split or represented as bin
   ]);
   assert.deepEqual(splitOpportunityValues(0.01, 3), ["0.01", "0.00", "0.00"]);
   assert.deepEqual(splitOpportunityValues(0, 0), []);
-});
-test("sessions reject forgery, expiration, password rotation, and malformed tokens", () => {
-  const now = Date.now();
-  const session = signSession("test-key", now + 1000);
-  assert.equal(validSession(session, "test-key", now), true);
-  assert.equal(validSession(session + "x", "test-key", now), false);
-  assert.equal(validSession(session, "different-key", now), false);
-  assert.equal(validSession(session, "test-key", now + 1001), false);
-  assert.equal(validSession(undefined, "test-key", now), false);
-  assert.equal(validSession(`Infinity.fake`, "test-key", now), false);
 });
 test("server validation rejects unsafe URLs, invalid records, and out-of-range money", () => {
   const company = { name: "Acme", tags: ["SMB"], owner: "Sarah Nguyen" };
