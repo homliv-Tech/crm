@@ -19,14 +19,13 @@ export default function QuotationDocument({
   const key = JSON.stringify(quote);
   useEffect(() => {
     let active = true;
-    let url: string | undefined;
     const timer = setTimeout(async () => {
       try {
         const { getQuotationPdf } = await import("@/lib/pdf");
         const blob = await getQuotationPdf(JSON.parse(key));
         if (!active) return;
         onReady(blob, key);
-        url = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(blob);
         setPreview({ url, key });
         setError("");
       } catch {
@@ -39,9 +38,14 @@ export default function QuotationDocument({
     return () => {
       active = false;
       clearTimeout(timer);
-      if (url) URL.revokeObjectURL(url);
     };
   }, [key, retry, onReady]);
+  // Keep the displayed PDF usable while its replacement is rendering or fails.
+  useEffect(() => {
+    if (!preview) return;
+    return () => URL.revokeObjectURL(preview.url);
+  }, [preview]);
+
   return (
     <section
       aria-label="Quotation preview"
