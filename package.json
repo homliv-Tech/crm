@@ -17,8 +17,8 @@
     "db:generate": "npm run db:generate --workspace @crm/web",
     "db:migrate": "npm run db:migrate --workspace @crm/web",
     "db:studio": "npm run db:studio --workspace @crm/web",
-    "db:seed": "npm run db:seed --workspace @crm/web",
-    "test:integration": "npm run test:integration --workspace @crm/web"
+    "db:seed": "npm run db:seed --workspace @crm/web --",
+    "test:integration": "npm run test:integration --workspace @crm/web --"
   },
   "devDependencies": {
     "turbo": "^2.5.0"
