@@ -39,6 +39,10 @@ bun run start:quotations
 - The preview displays the actual generated PDF. Preview, download, and the PDF opened for printing use the same renderer and cached document bytes, including the logo above the firm name, typography, project panels, specifications, totals, and page breaks. Rendering stays in the browser; documents are not uploaded. An embedded PDF viewer and a full-document link are provided.
 - Browser-local autosave and validated JSON workspace backup/restore. Storage failures are reported, malformed stored drafts are preserved, and changes from other tabs pause saving to avoid silently overwriting their work.
 
+## Working on the code
+
+See [the maintenance guide](ARCHITECTURE.md) for file ownership, common change paths, and behavior to preserve.
+
 ## PDF rendering
 
 `components/quotation-pdf.tsx` owns the entire document design in React PDF. `lib/pdf.ts` generates and caches up to two PDFs, serializes rendering jobs, and shares the generated Blob between the preview and download. `components/quotation-document.tsx` debounces edits and displays that Blob in the browser’s PDF viewer; it does not maintain a separate HTML approximation. The **Open PDF to print** action opens the same PDF, where the viewer’s Print action prints its actual pages. Pop-ups must be allowed for that action; downloading and printing from a PDF viewer also works. Native PDF viewer controls vary by browser.
