@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Arial, Helvetica, sans-serif;
+}
+
+@layer base {
+  body {
+    background: #f6f7f5;
+    color: #242a28;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  h1 {
+    font-size: 1.875rem;
+    line-height: 1.2;
+    font-weight: 650;
+    letter-spacing: -0.04em;
+  }
+  h2 {
+    font-size: 1.125rem;
+    line-height: 1.5;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+  h3 {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    font-weight: 600;
+  }
+  p {
+    font-size: 0.875rem;
+    line-height: 1.65;
+  }
+  input,
+  select,
+  textarea {
+    min-width: 0;
+    width: 100%;
+    border: 1px solid #d6d3d1;
+    border-radius: 0.5rem;
+    background: white;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+    color: #292524;
+  }
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  a:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid #17644c;
+    outline-offset: 2px;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: #78716c;
+  }
+  textarea {
+    resize: vertical;
+  }
+  @media (min-width: 768px) {
+    h1 {
+      font-size: 2rem;
+    }
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+  body {
+    background: white;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-shell {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  .quotation-document {
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+  .quotation-document tr,
+  .quotation-document .avoid-break {
+    break-inside: avoid;
+  }
+  .quotation-document tr.specification-row {
+    break-inside: auto;
+  }
+  .quotation-document thead {
+    display: table-header-group;
+  }
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
