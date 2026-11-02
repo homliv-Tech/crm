@@ -42,3 +42,8 @@ next-env.d.ts
 
 # Safe setup template (never add real credentials here).
 !.env.example
+
+**/node_modules/
+**/.next/
+**/coverage/
+.turbo/
