@@ -1,6 +1,9 @@
 "use client";
 
 import {
+  cloneElement,
+  isValidElement,
+  useId,
   useCallback,
   useEffect,
   useRef,
@@ -38,12 +41,48 @@ import {
   type Workspace,
 } from "@/lib/quotation";
 
-type FieldProps = { label: string; children: ReactNode; hint?: string };
-function Field({ label, children, hint }: FieldProps) {
+const editorSteps = [
+  {
+    title: "Client & project",
+    hint: "Set up the quotation and contact details.",
+  },
+  { title: "Work & pricing", hint: "Add work items, quantities and rates." },
+  {
+    title: "Terms & branding",
+    hint: "Add your scope, payment terms and finishing touches.",
+  },
+];
+
+function issueStep(issue: string) {
+  return /item|specification|variation/.test(issue) ? 1 : 0;
+}
+
+type FieldProps = {
+  label: string;
+  children: ReactNode;
+  hint?: string;
+  error?: string;
+};
+function Field({ label, children, hint, error }: FieldProps) {
+  const errorId = useId();
+  const control = isValidElement<{
+    "aria-invalid"?: boolean;
+    "aria-describedby"?: string;
+  }>(children)
+    ? cloneElement(children, {
+        "aria-invalid": error ? true : undefined,
+        "aria-describedby": error ? errorId : undefined,
+      })
+    : children;
   return (
     <label className="block min-w-0 space-y-1.5">
       <span className="block text-xs font-medium text-stone-600">{label}</span>
-      {children}
+      {control}
+      {error && (
+        <span id={errorId} className="block text-xs leading-5 text-red-700">
+          {error}
+        </span>
+      )}
       {hint && (
         <span className="block text-[11px] leading-5 text-stone-500">
           {hint}
@@ -101,6 +140,10 @@ export default function QuotationApp() {
   const [blocked, setBlocked] = useState(false);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"edit" | "preview">("edit");
+  const [step, setStep] = useState(0);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const stepHeading = useRef<HTMLHeadingElement>(null);
+  const errorSummary = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const importInput = useRef<HTMLInputElement>(null);
@@ -186,6 +229,43 @@ export default function QuotationApp() {
       </main>
     );
   const totals = calculate(quote);
+  const readiness = exportErrors(quote);
+
+  function goToStep(next: number) {
+    setStep(next);
+    setView("edit");
+    requestAnimationFrame(() => {
+      stepHeading.current?.focus();
+      stepHeading.current?.scrollIntoView({ block: "start" });
+    });
+  }
+  function fixIssue(issue: string) {
+    setErrors(readiness);
+    goToStep(issueStep(issue));
+    requestAnimationFrame(() => {
+      const form = document.getElementById("quotation-form");
+      if (/specification/.test(issue)) {
+        form?.querySelectorAll("details").forEach((detail) => {
+          detail.open = true;
+        });
+      }
+      const invalid = Array.from(
+        form?.querySelectorAll<HTMLElement>('[aria-invalid="true"]') || [],
+      ).find((control) => !control.closest("[hidden]"));
+      invalid?.focus();
+    });
+  }
+  function showIssues(issues: string[]) {
+    setErrors(issues);
+    if (!issues.length) return false;
+    setView("edit");
+    setStep(issueStep(issues[0]));
+    requestAnimationFrame(() => {
+      errorSummary.current?.focus();
+      errorSummary.current?.scrollIntoView({ block: "center" });
+    });
+    return true;
+  }
   const current = quote;
   const currentWorkspace = workspace;
 
@@ -254,6 +334,7 @@ export default function QuotationApp() {
     });
     setErrors([]);
     setView("edit");
+    setStep(0);
   }
   function saveTemplate(item: LineItem) {
     if (!item.name.trim()) {
@@ -289,6 +370,7 @@ export default function QuotationApp() {
       });
       setErrors([]);
       setView("edit");
+      setStep(1);
     } catch (error) {
       setErrors([
         error instanceof Error ? error.message : "Could not create a revision.",
@@ -316,11 +398,7 @@ export default function QuotationApp() {
   }
   async function exportPdf() {
     const issues = exportErrors(current);
-    setErrors(issues);
-    if (issues.length) {
-      setView("edit");
-      return;
-    }
+    if (showIssues(issues)) return;
     setExporting(true);
     try {
       const { downloadPdf } = await import("@/lib/pdf");
@@ -433,7 +511,14 @@ export default function QuotationApp() {
     placeholder: string,
     multiline = false,
   ) => (
-    <Field label={label}>
+    <Field
+      label={label}
+      error={
+        errors.length && key === "number" && !current.number.trim()
+          ? "Enter a quotation number."
+          : undefined
+      }
+    >
       {multiline ? (
         <textarea
           rows={3}
@@ -480,112 +565,140 @@ export default function QuotationApp() {
       </header>
       <div className="print-shell mx-auto grid max-w-[1700px] lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="no-print border-b border-stone-200 bg-[#fbfcfa] p-5 lg:min-h-[calc(100vh-80px)] lg:border-r lg:border-b-0">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold tracking-wider text-stone-500 uppercase">
-              Your workspace
-            </span>
-            <span className="text-xs text-stone-500">
-              {workspace.quotes.length}/100
-            </span>
-          </div>
           <Button
-            variant="primary"
-            className="mt-5 w-full"
-            onClick={() => addQuote()}
+            variant="secondary"
+            className="w-full justify-between lg:hidden"
+            aria-expanded={workspaceOpen}
+            aria-controls="saved-workspace"
+            onClick={() => setWorkspaceOpen(!workspaceOpen)}
           >
-            <span aria-hidden="true" className="text-lg leading-none">
-              +
-            </span>{" "}
-            New quotation
+            Saved quotations ({workspace.quotes.length}){" "}
+            <span aria-hidden="true">{workspaceOpen ? "−" : "+"}</span>
           </Button>
-          <label className="mt-5 block">
-            <span className="sr-only">Search quotations</span>
-            <input
-              type="search"
-              value={query}
-              placeholder="Search quotations…"
-              onChange={(e) => setQuery(e.target.value)}
-              className="bg-white text-xs"
-            />
-          </label>
-          <nav
-            aria-label="Saved quotations"
-            className="mt-3 flex max-h-64 flex-col gap-1 overflow-y-auto lg:max-h-[calc(100vh-420px)]"
+          <div
+            id="saved-workspace"
+            className={`${workspaceOpen ? "mt-5 block" : "hidden"} lg:mt-0 lg:block`}
           >
-            {visibleQuotes.length ? (
-              visibleQuotes.map((q) => (
-                <Button
-                  key={q.id}
-                  variant="ghost"
-                  aria-current={q.id === quote.id ? "page" : undefined}
-                  onClick={() => {
-                    setWorkspace({ ...workspace, activeId: q.id });
-                    setErrors([]);
-                  }}
-                  className={`w-full justify-start p-3 text-left whitespace-normal ${q.id === quote.id ? "border border-emerald-200 bg-emerald-50 text-emerald-900" : "border border-transparent"}`}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center justify-between gap-1">
-                      <span className="text-xs font-semibold break-all">
-                        {q.number || "Unnumbered"}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold tracking-wider text-stone-500 uppercase">
+                Your workspace
+              </span>
+              <span className="text-xs text-stone-500">
+                {workspace.quotes.length}/100
+              </span>
+            </div>
+            <Button
+              variant="primary"
+              className="mt-5 w-full"
+              onClick={() => addQuote()}
+            >
+              <span aria-hidden="true" className="text-lg leading-none">
+                +
+              </span>{" "}
+              New quotation
+            </Button>
+            <label className="mt-5 block">
+              <span className="sr-only">Search quotations</span>
+              <input
+                type="search"
+                value={query}
+                placeholder="Search quotations…"
+                onChange={(e) => setQuery(e.target.value)}
+                className="bg-white text-base sm:text-xs"
+              />
+            </label>
+            <nav
+              aria-label="Saved quotations"
+              className="mt-3 flex max-h-64 flex-col gap-1 overflow-y-auto lg:max-h-[calc(100vh-420px)]"
+            >
+              {visibleQuotes.length ? (
+                visibleQuotes.map((q) => (
+                  <Button
+                    key={q.id}
+                    variant="ghost"
+                    aria-current={q.id === quote.id ? "page" : undefined}
+                    onClick={() => {
+                      setWorkspace({ ...workspace, activeId: q.id });
+                      setErrors([]);
+                      setStep(0);
+                      setView("edit");
+                      setWorkspaceOpen(false);
+                    }}
+                    className={`w-full justify-start p-3 text-left whitespace-normal ${q.id === quote.id ? "border border-emerald-200 bg-emerald-50 text-emerald-900" : "border border-transparent"}`}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center justify-between gap-1">
+                        <span className="text-xs font-semibold break-all">
+                          {q.number || "Unnumbered"}
+                        </span>
+                        <span className="text-[10px] font-normal text-stone-600">
+                          {q.status}
+                        </span>
                       </span>
-                      <span className="text-[10px] font-normal text-stone-600">
-                        {q.status}
+                      <span className="mt-1 block text-[11px] font-normal break-words text-stone-600">
+                        {q.to.name || "No client yet"}
                       </span>
                     </span>
-                    <span className="mt-1 block text-[11px] font-normal break-words text-stone-600">
-                      {q.to.name || "No client yet"}
-                    </span>
-                  </span>
-                </Button>
-              ))
-            ) : (
-              <p className="px-3 py-5 text-stone-500">
-                No matching quotations.
+                  </Button>
+                ))
+              ) : (
+                <div className="px-3 py-5">
+                  <p className="text-stone-600">
+                    No quotations match “{query}”.
+                  </p>
+                  <Button
+                    variant="secondary"
+                    className="mt-3"
+                    onClick={() => setQuery("")}
+                  >
+                    Clear search
+                  </Button>
+                </div>
+              )}
+            </nav>
+            <div className="mt-8 space-y-2 border-t border-stone-200 pt-5">
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-xs"
+                onClick={backup}
+              >
+                ↓ Export workspace backup
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-xs"
+                onClick={() => importInput.current?.click()}
+              >
+                ↑ Import backup
+              </Button>
+              <input
+                ref={importInput}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                aria-label="Import workspace backup"
+                onChange={(e) => {
+                  void importBackup(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+              <p className="px-3 pt-2 text-xs text-stone-500">
+                Drafts stay in this browser. Export a backup before clearing
+                browser data or moving devices.
               </p>
-            )}
-          </nav>
-          <div className="mt-8 space-y-2 border-t border-stone-200 pt-5">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-xs"
-              onClick={backup}
-            >
-              ↓ Export workspace backup
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-xs"
-              onClick={() => importInput.current?.click()}
-            >
-              ↑ Import backup
-            </Button>
-            <input
-              ref={importInput}
-              type="file"
-              accept="application/json,.json"
-              className="hidden"
-              aria-label="Import workspace backup"
-              onChange={(e) => {
-                void importBackup(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-            <p className="px-3 pt-2 text-xs text-stone-500">
-              Drafts stay in this browser. Export a backup before clearing
-              browser data or moving devices.
-            </p>
+            </div>
           </div>
         </aside>
         <main id="editor" className="print-shell min-w-0 p-5 sm:p-8">
           <div className="no-print mb-7 flex flex-wrap items-start justify-between gap-5">
             <div>
               <div className="mb-2 text-[10px] font-semibold tracking-[0.18em] text-emerald-800 uppercase">
-                From first survey to final finish
+                {quote.number || "New quotation"} · {quote.status}
               </div>
               <h1>Quotation generator</h1>
               <p className="mt-2 text-stone-500">
-                Prepare clear project quotations for homeowners and businesses.
+                Build your quotation in three steps, then review the PDF before
+                sharing.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -596,7 +709,7 @@ export default function QuotationApp() {
                 Duplicate
               </Button>
               <Button
-                variant="primary"
+                variant="secondary"
                 disabled={exporting}
                 onClick={() => void exportPdf()}
               >
@@ -622,938 +735,1129 @@ export default function QuotationApp() {
           {!!errors.length && (
             <div
               role="alert"
+              ref={errorSummary}
+              tabIndex={-1}
               className="no-print mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
             >
               <div className="font-semibold">A few details are missing</div>
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 {errors.map((error) => (
-                  <li key={error}>{error}</li>
+                  <li key={error}>
+                    <button
+                      type="button"
+                      className="min-h-8 cursor-pointer text-left underline underline-offset-4 focus-visible:outline-2"
+                      onClick={() => fixIssue(error)}
+                    >
+                      {error} <span aria-hidden="true">→</span>
+                    </button>
+                  </li>
                 ))}
               </ul>
             </div>
           )}
-          <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-4">
-            <div
-              className="flex gap-1 rounded-lg bg-stone-200/60 p-1"
-              aria-label="Workspace view"
+          <nav
+            aria-label="Quotation steps"
+            className="no-print mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4"
+          >
+            {editorSteps.map((item, index) => (
+              <Button
+                key={item.title}
+                variant="secondary"
+                aria-current={
+                  view === "edit" && step === index ? "step" : undefined
+                }
+                className={`justify-start text-left whitespace-normal ${view === "edit" && step === index ? "border-emerald-700 bg-emerald-50 text-emerald-900" : ""}`}
+                onClick={() => goToStep(index)}
+              >
+                <span aria-hidden="true" className="font-semibold">
+                  {index + 1}.
+                </span>{" "}
+                {item.title}
+              </Button>
+            ))}
+            <Button
+              variant="secondary"
+              aria-current={view === "preview" ? "step" : undefined}
+              className={`justify-start ${view === "preview" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : ""}`}
+              onClick={() => setView("preview")}
             >
-              <Button
-                variant="ghost"
-                aria-pressed={view === "edit"}
-                className={view === "edit" ? "bg-white shadow-sm" : ""}
-                onClick={() => setView("edit")}
+              4. Review PDF
+            </Button>
+          </nav>
+          <div className="no-print mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2
+                ref={stepHeading}
+                tabIndex={-1}
+                className="scroll-mt-6 focus:outline-none"
               >
-                1. Edit quotation
-              </Button>
-              <Button
-                variant="ghost"
-                aria-pressed={view === "preview"}
-                className={view === "preview" ? "bg-white shadow-sm" : ""}
-                onClick={() => setView("preview")}
-              >
-                2. Preview & export
-              </Button>
+                {view === "edit"
+                  ? editorSteps[step].title
+                  : "Review your quotation"}
+              </h2>
+              <p className="mt-1 text-stone-600">
+                {view === "edit"
+                  ? editorSteps[step].hint
+                  : "Check the document before downloading or printing."}
+              </p>
             </div>
-            <span role="status" className="text-xs text-stone-500">
+            <span role="status" className="text-xs text-stone-600">
               {saveState}
             </span>
           </div>
-          <div
-            className={`print-shell grid items-start gap-7 ${view === "edit" ? "2xl:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]" : "lg:grid-cols-[minmax(0,1fr)_260px]"}`}
-          >
+          <div className="print-shell grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
             {view === "edit" && (
               <form
+                id="quotation-form"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  setView("preview");
+                  if (step < 2) goToStep(step + 1);
+                  else setView("preview");
                 }}
+                noValidate
                 className="no-print min-w-0 space-y-5"
               >
-                <Section number="01" title="The essentials">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {field("number", "Quotation number *", "QT-0001")}
-                    <Field label="Currency">
-                      <select
-                        disabled={!!quote.revision}
-                        value={quote.currency}
-                        onChange={(e) =>
-                          update({
-                            currency: e.target.value as Quotation["currency"],
-                          })
-                        }
-                      >
-                        {currencies.map((currency) => (
-                          <option key={currency}>{currency}</option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Quotation date *">
-                      <input
-                        type="date"
-                        value={quote.issued}
-                        onChange={(e) => {
-                          if (
-                            e.target.value &&
-                            quotationSchema.shape.issued.safeParse(
-                              e.target.value,
-                            ).success
-                          )
-                            update({ issued: e.target.value });
-                        }}
-                        required
-                      />
-                    </Field>
-                    <Field label="Valid until *">
-                      <input
-                        type="date"
-                        value={quote.validUntil}
-                        min={quote.issued}
-                        onChange={(e) => {
-                          if (
-                            e.target.value &&
-                            quotationSchema.shape.validUntil.safeParse(
-                              e.target.value,
-                            ).success
-                          )
-                            update({ validUntil: e.target.value });
-                        }}
-                        required
-                      />
-                    </Field>
-                  </div>
-                  {field(
-                    "title",
-                    "Project / quotation title",
-                    "e.g. Apartment renovation · Indiranagar",
-                  )}
-                  <Field
-                    label="Status"
-                    hint="For your records only. Update this manually as the conversation progresses."
-                  >
-                    <select
-                      value={quote.status}
-                      onChange={(e) =>
-                        update({
-                          status: e.target.value as Quotation["status"],
-                        })
-                      }
-                    >
-                      {statuses.map((status) => (
-                        <option key={status}>{status}</option>
-                      ))}
-                    </select>
-                  </Field>
-                </Section>
-                <Section number="02" title="Client & project site">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label="Client type">
-                      <select
-                        value={quote.clientType}
-                        onChange={(e) =>
-                          update({
-                            clientType: e.target
-                              .value as Quotation["clientType"],
-                          })
-                        }
-                      >
-                        <option value="Individual">
-                          Individual / homeowner
-                        </option>
-                        <option value="Company">Company / organization</option>
-                      </select>
-                    </Field>
-                    <Field label="Project type">
-                      <select
-                        value={quote.projectType}
-                        onChange={(e) =>
-                          update({
-                            projectType: e.target
-                              .value as Quotation["projectType"],
-                          })
-                        }
-                      >
-                        {projectTypes.map((type) => (
-                          <option key={type}>{type}</option>
-                        ))}
-                      </select>
-                    </Field>
-                  </div>
-                  {field(
-                    "siteAddress",
-                    "Project site address",
-                    "Site address, floor / unit, city and postal code",
-                    true,
-                  )}
-                  {field(
-                    "timeline",
-                    "Expected duration / schedule",
-                    "e.g. 8–10 weeks from site handover, subject to approvals",
-                  )}
-
-                  <div className="grid gap-6 sm:grid-cols-2">
-                    {(["from", "to"] as const).map((side) => (
-                      <div key={side} className="min-w-0 space-y-4">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`size-2 rounded-full ${side === "from" ? "bg-emerald-700" : "bg-stone-400"}`}
-                          />
-                          <h3>
-                            {side === "from"
-                              ? "From · Your firm"
-                              : "To · Your client"}
-                          </h3>
-                        </div>
-                        <Field
-                          label={
-                            side === "from"
-                              ? "Firm name *"
-                              : quote.clientType === "Individual"
-                                ? "Client full name *"
-                                : "Company name *"
+                <div hidden={step !== 0} className="space-y-5">
+                  <Section number="01" title="The essentials">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {field("number", "Quotation number *", "QT-0001")}
+                      <Field label="Currency">
+                        <select
+                          disabled={!!quote.revision}
+                          value={quote.currency}
+                          onChange={(e) =>
+                            update({
+                              currency: e.target.value as Quotation["currency"],
+                            })
                           }
                         >
-                          <input
-                            value={quote[side].name}
-                            maxLength={5000}
-                            placeholder={
-                              side === "from"
-                                ? "Your architecture / building firm"
-                                : quote.clientType === "Individual"
-                                  ? "Homeowner’s full name"
-                                  : "Client’s registered company name"
-                            }
-                            onChange={(e) =>
-                              update({
-                                [side]: {
-                                  ...quote[side],
-                                  name: e.target.value,
-                                },
-                              })
-                            }
-                          />
-                        </Field>
-                        <Field label="Email">
-                          <input
-                            type="email"
-                            value={quote[side].email}
-                            maxLength={5000}
-                            placeholder="hello@company.com"
-                            onChange={(e) =>
-                              update({
-                                [side]: {
-                                  ...quote[side],
-                                  email: e.target.value,
-                                },
-                              })
-                            }
-                          />
-                        </Field>
-                        <Field label="Phone">
-                          <input
-                            type="tel"
-                            value={quote[side].phone}
-                            maxLength={5000}
-                            placeholder="Phone number with country code"
-                            onChange={(e) =>
-                              update({
-                                [side]: {
-                                  ...quote[side],
-                                  phone: e.target.value,
-                                },
-                              })
-                            }
-                          />
-                        </Field>
-                        <Field
-                          label={
-                            side === "from" ? "Firm address" : "Billing address"
-                          }
-                        >
-                          <textarea
-                            rows={3}
-                            value={quote[side].address}
-                            maxLength={5000}
-                            placeholder="Street, city, state, postal code"
-                            onChange={(e) =>
-                              update({
-                                [side]: {
-                                  ...quote[side],
-                                  address: e.target.value,
-                                },
-                              })
-                            }
-                          />
-                        </Field>
-                        <Field label="GSTIN / tax ID (optional)">
-                          <input
-                            value={quote[side].taxId}
-                            maxLength={5000}
-                            placeholder="Tax registration number"
-                            onChange={(e) =>
-                              update({
-                                [side]: {
-                                  ...quote[side],
-                                  taxId: e.target.value,
-                                },
-                              })
-                            }
-                          />
-                        </Field>
-                      </div>
-                    ))}
-                  </div>
-                </Section>
-                {quote.revision && (
-                  <Section
-                    number="R"
-                    title={`Revision of ${quote.revision.sourceNumber}`}
-                  >
-                    <p>
-                      The original final total of{" "}
-                      {money(quote.revision.originalTotal, quote.currency)} is
-                      carried forward. Enter only additional work below. The
-                      final discount / adjustment applies after the original
-                      total, additional work tax, and charges.
-                    </p>
-                    <details className="rounded-lg border border-stone-200 p-3">
-                      <summary className="cursor-pointer text-sm font-medium">
-                        View preserved original scope (
-                        {quote.revision.originalItems.length} items)
-                      </summary>
-                      <div className="mt-3 space-y-2 text-xs">
-                        {quote.revision.originalItems.map((item, index) => (
-                          <div key={`${item.id}-${index}`}>
-                            {item.room && `${item.room} · `}
-                            {item.name} — {item.quantity} {item.unit}
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  </Section>
-                )}
-                <Section
-                  number="03"
-                  title={
-                    quote.revision
-                      ? "Additional work & packages"
-                      : "Bill of quantities & work items"
-                  }
-                >
-                  <Field
-                    label="Add a package template"
-                    hint="Includes editable specification headings. Enter your firm's materials, selections and price; remove unused sections."
-                  >
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        if (!e.target.value || quote.items.length >= 100)
-                          return;
-                        const saved = e.target.value.startsWith("saved:")
-                          ? currentWorkspace.templates?.find(
-                              (item) => item.id === e.target.value.slice(6),
+                          {currencies.map((currency) => (
+                            <option key={currency}>{currency}</option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Quotation date *">
+                        <input
+                          type="date"
+                          value={quote.issued}
+                          onChange={(e) => {
+                            if (
+                              e.target.value &&
+                              quotationSchema.shape.issued.safeParse(
+                                e.target.value,
+                              ).success
                             )
-                          : undefined;
-                        if (e.target.value.startsWith("saved:") && !saved)
-                          return;
-                        const item = saved
-                          ? instantiateTemplate(saved)
-                          : packageItem(
-                              e.target.value as keyof typeof packageTemplates,
-                            );
-                        const empty =
-                          quote.items.length === 1 &&
-                          !quote.items[0].name &&
-                          !quote.items[0].rate &&
-                          !quote.items[0].description &&
-                          !quote.items[0].specifications.length &&
-                          !quote.items[0].room &&
-                          !quote.items[0].sku &&
-                          !quote.items[0].changes &&
-                          (quote.items[0].quantity === "1" ||
-                            quote.items[0].quantity === "");
-                        update({
-                          items: empty ? [item] : [...quote.items, item],
-                        });
-                      }}
-                      disabled={quote.items.length >= 100}
-                    >
-                      <option value="">Choose a package…</option>
-                      {(workspace.templates || []).map((item) => (
-                        <option key={item.id} value={`saved:${item.id}`}>
-                          My firm · {item.name}
-                        </option>
-                      ))}
-                      {Object.entries(packageTemplates).map(
-                        ([key, template]) => (
-                          <option key={key} value={key}>
-                            {template.name}
-                          </option>
-                        ),
-                      )}
-                    </select>
-                  </Field>
-                  {!!workspace.templates?.length && (
-                    <details className="rounded-lg border border-stone-200 p-3">
-                      <summary className="cursor-pointer text-xs font-medium">
-                        Manage saved firm templates (
-                        {workspace.templates.length})
-                      </summary>
-                      <div className="mt-3 space-y-2">
-                        {workspace.templates.map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex items-center justify-between gap-2"
-                          >
-                            <span className="text-xs break-words">
-                              {item.name}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              aria-label={`Delete template ${item.name}`}
-                              onClick={() => {
-                                if (
-                                  window.confirm(
-                                    `Delete saved template ${item.name}? Existing quotation items will be kept.`,
-                                  )
-                                )
-                                  setWorkspace({
-                                    ...workspace,
-                                    templates: workspace.templates?.filter(
-                                      (template) => template.id !== item.id,
-                                    ),
-                                  });
-                              }}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  )}
-                  <div className="space-y-3 rounded-lg bg-stone-50 p-4">
-                    <p className="text-stone-600">
-                      Start with a work list for{" "}
-                      {quote.projectType.toLowerCase()}, then enter your
-                      measured quantities, specifications, and rates. Starter
-                      lists do not include prices.
-                    </p>
-                    <Button
-                      variant="secondary"
-                      disabled={quote.projectType === "Other"}
-                      onClick={() => {
-                        if (
-                          quote.items.some(
-                            (item) =>
-                              item.name || item.rate || item.description,
-                          ) &&
-                          !window.confirm(
-                            "Replace the current work items with a starter list? Existing quantities, rates and descriptions will be removed.",
-                          )
-                        )
-                          return;
-                        const items = starterItems(quote.projectType);
-                        if (items.length) update({ items });
-                      }}
-                    >
-                      Use {quote.projectType.toLowerCase()} starter list
-                    </Button>
-                  </div>
-
-                  <div className="divide-y divide-stone-200">
-                    {quote.items.map((item, index) => (
-                      <fieldset
-                        key={item.id}
-                        className="min-w-0 space-y-3 py-5 first:pt-0"
-                      >
-                        <legend className="sr-only">Item {index + 1}</legend>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-stone-500">
-                            ITEM {String(index + 1).padStart(2, "0")}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            disabled={quote.items.length === 1}
-                            aria-label={`Remove item ${index + 1}`}
-                            onClick={() => {
-                              if (
-                                item.name &&
-                                !window.confirm(`Remove ${item.name}?`)
-                              )
-                                return;
-                              update({
-                                items: quote.items.filter(
-                                  (row) => row.id !== item.id,
-                                ),
-                              });
-                            }}
-                            className="text-xs"
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                        <Field label="Work section">
-                          <input
-                            list="work-sections"
-                            value={item.section}
-                            maxLength={5000}
-                            placeholder="e.g. Civil works"
-                            onChange={(e) =>
-                              updateItem(item.id, { section: e.target.value })
-                            }
-                          />
-                        </Field>
-                        <Field label="Work item *">
-                          <input
-                            value={item.name}
-                            maxLength={5000}
-                            placeholder="e.g. Vitrified tile flooring"
-                            onChange={(e) =>
-                              updateItem(item.id, { name: e.target.value })
-                            }
-                          />
-                        </Field>
-                        <Button
-                          variant="secondary"
-                          onClick={() => saveTemplate(item)}
-                        >
-                          Save as firm template
-                        </Button>
-                        <ItemDetailEditor
-                          item={item}
-                          onChange={(patch) => updateItem(item.id, patch)}
+                              update({ issued: e.target.value });
+                          }}
+                          required
                         />
-                        <Field label="Overview / inclusions">
-                          <textarea
-                            rows={2}
-                            value={item.description}
-                            maxLength={5000}
-                            placeholder="Material, brand / grade, dimensions, location, and whether labour and supply are included…"
-                            onChange={(e) =>
-                              updateItem(item.id, {
-                                description: e.target.value,
-                              })
+                      </Field>
+                      <Field
+                        label="Valid until *"
+                        error={
+                          errors.length && quote.validUntil < quote.issued
+                            ? "Choose a date on or after the quotation date."
+                            : undefined
+                        }
+                      >
+                        <input
+                          type="date"
+                          value={quote.validUntil}
+                          min={quote.issued}
+                          onChange={(e) => {
+                            if (
+                              e.target.value &&
+                              quotationSchema.shape.validUntil.safeParse(
+                                e.target.value,
+                              ).success
+                            )
+                              update({ validUntil: e.target.value });
+                          }}
+                          required
+                        />
+                      </Field>
+                    </div>
+                    {field(
+                      "title",
+                      "Project / quotation title",
+                      "e.g. Apartment renovation · Indiranagar",
+                    )}
+                    <Field
+                      label="Status"
+                      hint="For your records only. Update this manually as the conversation progresses."
+                    >
+                      <select
+                        value={quote.status}
+                        onChange={(e) =>
+                          update({
+                            status: e.target.value as Quotation["status"],
+                          })
+                        }
+                      >
+                        {statuses.map((status) => (
+                          <option key={status}>{status}</option>
+                        ))}
+                      </select>
+                    </Field>
+                  </Section>
+                  <Section number="02" title="Client & project site">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field label="Client type">
+                        <select
+                          value={quote.clientType}
+                          onChange={(e) =>
+                            update({
+                              clientType: e.target
+                                .value as Quotation["clientType"],
+                            })
+                          }
+                        >
+                          <option value="Individual">
+                            Individual / homeowner
+                          </option>
+                          <option value="Company">
+                            Company / organization
+                          </option>
+                        </select>
+                      </Field>
+                      <Field label="Project type">
+                        <select
+                          value={quote.projectType}
+                          onChange={(e) =>
+                            update({
+                              projectType: e.target
+                                .value as Quotation["projectType"],
+                            })
+                          }
+                        >
+                          {projectTypes.map((type) => (
+                            <option key={type}>{type}</option>
+                          ))}
+                        </select>
+                      </Field>
+                    </div>
+                    {field(
+                      "siteAddress",
+                      "Project site address",
+                      "Site address, floor / unit, city and postal code",
+                      true,
+                    )}
+                    {field(
+                      "timeline",
+                      "Expected duration / schedule",
+                      "e.g. 8–10 weeks from site handover, subject to approvals",
+                    )}
+
+                    <div className="grid gap-6 sm:grid-cols-2">
+                      {(["from", "to"] as const).map((side) => (
+                        <div key={side} className="min-w-0 space-y-4">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`size-2 rounded-full ${side === "from" ? "bg-emerald-700" : "bg-stone-400"}`}
+                            />
+                            <h3>
+                              {side === "from"
+                                ? "From · Your firm"
+                                : "To · Your client"}
+                            </h3>
+                          </div>
+                          <Field
+                            error={
+                              errors.length && !quote[side].name.trim()
+                                ? side === "from"
+                                  ? "Enter your firm name."
+                                  : "Enter your client’s name."
+                                : undefined
                             }
-                          />
-                        </Field>
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                          <Field label="Unit">
-                            <select
-                              value={item.unit}
+                            label={
+                              side === "from"
+                                ? "Firm name *"
+                                : quote.clientType === "Individual"
+                                  ? "Client full name *"
+                                  : "Company name *"
+                            }
+                          >
+                            <input
+                              value={quote[side].name}
+                              maxLength={5000}
+                              placeholder={
+                                side === "from"
+                                  ? "Your architecture / building firm"
+                                  : quote.clientType === "Individual"
+                                    ? "Homeowner’s full name"
+                                    : "Client’s registered company name"
+                              }
                               onChange={(e) =>
-                                updateItem(item.id, {
-                                  unit: e.target.value as LineItem["unit"],
+                                update({
+                                  [side]: {
+                                    ...quote[side],
+                                    name: e.target.value,
+                                  },
                                 })
                               }
-                            >
-                              {units.map((unit) => (
-                                <option key={unit}>{unit}</option>
-                              ))}
-                            </select>
+                            />
                           </Field>
-                          <Field label="Quantity *">
+                          <Field label="Email">
                             <input
-                              inputMode="decimal"
-                              value={item.quantity}
-                              placeholder="1"
+                              type="email"
+                              value={quote[side].email}
+                              maxLength={5000}
+                              placeholder="hello@company.com"
                               onChange={(e) =>
-                                setNumber(e.target.value, (quantity) =>
-                                  updateItem(item.id, { quantity }),
-                                )
+                                update({
+                                  [side]: {
+                                    ...quote[side],
+                                    email: e.target.value,
+                                  },
+                                })
+                              }
+                            />
+                          </Field>
+                          <Field label="Phone">
+                            <input
+                              type="tel"
+                              value={quote[side].phone}
+                              maxLength={5000}
+                              placeholder="Phone number with country code"
+                              onChange={(e) =>
+                                update({
+                                  [side]: {
+                                    ...quote[side],
+                                    phone: e.target.value,
+                                  },
+                                })
                               }
                             />
                           </Field>
                           <Field
-                            label={`Rate / ${item.unit} (${quote.currency}) *`}
+                            label={
+                              side === "from"
+                                ? "Firm address"
+                                : "Billing address"
+                            }
                           >
-                            <input
-                              inputMode="decimal"
-                              value={item.rate}
-                              placeholder="0.00"
+                            <textarea
+                              rows={3}
+                              value={quote[side].address}
+                              maxLength={5000}
+                              placeholder="Street, city, state, postal code"
                               onChange={(e) =>
-                                setNumber(e.target.value, (rate) =>
-                                  updateItem(item.id, { rate }),
-                                )
+                                update({
+                                  [side]: {
+                                    ...quote[side],
+                                    address: e.target.value,
+                                  },
+                                })
                               }
                             />
                           </Field>
-                          <Field label="Tax (%)">
+                          <Field label="GSTIN / tax ID (optional)">
                             <input
-                              inputMode="decimal"
-                              value={item.tax}
-                              placeholder="0"
+                              value={quote[side].taxId}
+                              maxLength={5000}
+                              placeholder="Tax registration number"
                               onChange={(e) =>
-                                setNumber(
-                                  e.target.value,
-                                  (tax) => updateItem(item.id, { tax }),
-                                  true,
-                                )
+                                update({
+                                  [side]: {
+                                    ...quote[side],
+                                    taxId: e.target.value,
+                                  },
+                                })
                               }
                             />
                           </Field>
-                          <div className="min-w-0">
-                            <span className="text-xs font-medium text-stone-600">
-                              Amount
-                            </span>
-                            <div className="mt-1.5 py-2.5 text-sm font-semibold break-all tabular-nums">
-                              {money(totals.rows[index].amount, quote.currency)}
-                            </div>
-                          </div>
                         </div>
-                      </fieldset>
-                    ))}
-                  </div>
-                  <Button
-                    variant="secondary"
-                    className="w-full border-dashed"
-                    disabled={quote.items.length >= 100}
-                    onClick={() =>
-                      update({ items: [...quote.items, newItem()] })
+                      ))}
+                    </div>
+                  </Section>
+                </div>
+                <div hidden={step !== 1} className="space-y-5">
+                  {quote.revision && (
+                    <Section
+                      number="R"
+                      title={`Revision of ${quote.revision.sourceNumber}`}
+                    >
+                      <p>
+                        The original final total of{" "}
+                        {money(quote.revision.originalTotal, quote.currency)} is
+                        carried forward. Enter only additional work below. The
+                        final discount / adjustment applies after the original
+                        total, additional work tax, and charges.
+                      </p>
+                      <details className="rounded-lg border border-stone-200 p-3">
+                        <summary className="cursor-pointer text-sm font-medium">
+                          View preserved original scope (
+                          {quote.revision.originalItems.length} items)
+                        </summary>
+                        <div className="mt-3 space-y-2 text-xs">
+                          {quote.revision.originalItems.map((item, index) => (
+                            <div key={`${item.id}-${index}`}>
+                              {item.room && `${item.room} · `}
+                              {item.name} — {item.quantity} {item.unit}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    </Section>
+                  )}
+                  <Section
+                    number="03"
+                    title={
+                      quote.revision
+                        ? "Additional work & packages"
+                        : "Bill of quantities & work items"
                     }
                   >
-                    + Add work item
-                  </Button>
-                  <div className="grid gap-4 border-t border-stone-200 pt-5 sm:grid-cols-2">
                     <Field
-                      label={
-                        quote.revision
-                          ? "Final adjustment type"
-                          : "Discount type"
-                      }
+                      label="Add a package template"
+                      hint="Includes editable specification headings. Enter your firm's materials, selections and price; remove unused sections."
                     >
                       <select
-                        value={quote.discountType}
-                        onChange={(e) =>
+                        value=""
+                        onChange={(e) => {
+                          if (!e.target.value || quote.items.length >= 100)
+                            return;
+                          const saved = e.target.value.startsWith("saved:")
+                            ? currentWorkspace.templates?.find(
+                                (item) => item.id === e.target.value.slice(6),
+                              )
+                            : undefined;
+                          if (e.target.value.startsWith("saved:") && !saved)
+                            return;
+                          const item = saved
+                            ? instantiateTemplate(saved)
+                            : packageItem(
+                                e.target.value as keyof typeof packageTemplates,
+                              );
+                          const empty =
+                            quote.items.length === 1 &&
+                            !quote.items[0].name &&
+                            !quote.items[0].rate &&
+                            !quote.items[0].description &&
+                            !quote.items[0].specifications.length &&
+                            !quote.items[0].room &&
+                            !quote.items[0].sku &&
+                            !quote.items[0].changes &&
+                            (quote.items[0].quantity === "1" ||
+                              quote.items[0].quantity === "");
                           update({
-                            discountType: e.target
-                              .value as Quotation["discountType"],
-                            discount: "0",
-                          })
-                        }
+                            items: empty ? [item] : [...quote.items, item],
+                          });
+                        }}
+                        disabled={quote.items.length >= 100}
                       >
-                        <option value="percent">Percentage (%)</option>
-                        <option value="fixed">
-                          Fixed amount ({quote.currency})
-                        </option>
+                        <option value="">Choose a package…</option>
+                        {(workspace.templates || []).map((item) => (
+                          <option key={item.id} value={`saved:${item.id}`}>
+                            My firm · {item.name}
+                          </option>
+                        ))}
+                        {Object.entries(packageTemplates).map(
+                          ([key, template]) => (
+                            <option key={key} value={key}>
+                              {template.name}
+                            </option>
+                          ),
+                        )}
                       </select>
                     </Field>
-                    <Field
-                      label={`${quote.revision ? "Final adjustment" : "Discount"} (${quote.discountType === "percent" ? "%" : quote.currency})`}
-                    >
-                      <input
-                        inputMode="decimal"
-                        value={quote.discount}
-                        onChange={(e) =>
-                          setNumber(
-                            e.target.value,
-                            (discount) => update({ discount }),
-                            quote.discountType === "percent",
+                    {!!workspace.templates?.length && (
+                      <details className="rounded-lg border border-stone-200 p-3">
+                        <summary className="cursor-pointer text-xs font-medium">
+                          Manage saved firm templates (
+                          {workspace.templates.length})
+                        </summary>
+                        <div className="mt-3 space-y-2">
+                          {workspace.templates.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between gap-2"
+                            >
+                              <span className="text-xs break-words">
+                                {item.name}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                aria-label={`Delete template ${item.name}`}
+                                onClick={() => {
+                                  if (
+                                    window.confirm(
+                                      `Delete saved template ${item.name}? Existing quotation items will be kept.`,
+                                    )
+                                  )
+                                    setWorkspace({
+                                      ...workspace,
+                                      templates: workspace.templates?.filter(
+                                        (template) => template.id !== item.id,
+                                      ),
+                                    });
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                    <div className="space-y-3 rounded-lg bg-stone-50 p-4">
+                      <p className="text-stone-600">
+                        Start with a work list for{" "}
+                        {quote.projectType.toLowerCase()}, then enter your
+                        measured quantities, specifications, and rates. Starter
+                        lists do not include prices.
+                      </p>
+                      <Button
+                        variant="secondary"
+                        disabled={quote.projectType === "Other"}
+                        onClick={() => {
+                          if (
+                            quote.items.some(
+                              (item) =>
+                                item.name || item.rate || item.description,
+                            ) &&
+                            !window.confirm(
+                              "Replace the current work items with a starter list? Existing quantities, rates and descriptions will be removed.",
+                            )
                           )
-                        }
-                      />
-                    </Field>
-                    <Field
-                      label={`Shipping / additional charges (${quote.currency})`}
-                    >
-                      <input
-                        inputMode="decimal"
-                        value={quote.shipping}
-                        onChange={(e) =>
-                          setNumber(e.target.value, (shipping) =>
-                            update({ shipping }),
-                          )
-                        }
-                      />
-                    </Field>
-                  </div>
-                  <p className="rounded-lg bg-stone-50 p-3 text-xs text-stone-500">
-                    {quote.revision
-                      ? "The revision adjustment applies after all carried-forward and added amounts. "
-                      : "Discounts apply proportionally before item tax. "}
-                    Additional charges are added after tax and are not taxed.
-                    Tax IDs are printed as entered; this app does not verify
-                    them.
-                  </p>
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-emerald-50 p-4 text-emerald-900">
-                    <span className="text-sm font-medium">
-                      Quotation total{" "}
-                      <span className="font-normal">({quote.currency})</span>
-                    </span>
-                    <span className="text-xl font-semibold break-all tabular-nums">
-                      {money(totals.total, quote.currency)}
-                    </span>
-                  </div>
-                </Section>
-                <Section number="V" title="Rates for additional / changed work">
-                  <p className="text-stone-500">
-                    Record agreed rates for future additions, such as furniture
-                    per sq ft or electrical work per point. These rates do not
-                    add to the current total.
-                  </p>
-                  <div className="space-y-4">
-                    {quote.variationRates.map((rate, index) => (
-                      <fieldset
-                        key={rate.id}
-                        className="space-y-3 rounded-lg border border-stone-200 p-4"
+                            return;
+                          const items = starterItems(quote.projectType);
+                          if (items.length) update({ items });
+                        }}
                       >
-                        <legend className="sr-only">
-                          Variation rate {index + 1}
-                        </legend>
-                        <Field label="Work / rate description">
-                          <input
-                            value={rate.name}
-                            maxLength={5000}
-                            placeholder="e.g. Additional furniture"
-                            onChange={(e) =>
-                              update({
-                                variationRates: quote.variationRates.map((r) =>
-                                  r.id === rate.id
-                                    ? { ...r, name: e.target.value }
-                                    : r,
-                                ),
-                              })
+                        Use {quote.projectType.toLowerCase()} starter list
+                      </Button>
+                    </div>
+
+                    <div className="divide-y divide-stone-200">
+                      {quote.items.map((item, index) => (
+                        <fieldset
+                          key={item.id}
+                          className="min-w-0 space-y-3 py-5 first:pt-0"
+                        >
+                          <legend className="sr-only">Item {index + 1}</legend>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-stone-500">
+                              ITEM {String(index + 1).padStart(2, "0")}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              disabled={quote.items.length === 1}
+                              aria-label={`Remove item ${index + 1}`}
+                              onClick={() => {
+                                if (
+                                  (item.name ||
+                                    item.rate ||
+                                    item.description ||
+                                    item.specifications.length ||
+                                    item.changes) &&
+                                  !window.confirm(
+                                    `Remove ${item.name || "this work item"}? Its pricing and specifications will be removed.`,
+                                  )
+                                )
+                                  return;
+                                update({
+                                  items: quote.items.filter(
+                                    (row) => row.id !== item.id,
+                                  ),
+                                });
+                              }}
+                              className="text-xs"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                          <Field label="Work section">
+                            <input
+                              list="work-sections"
+                              value={item.section}
+                              maxLength={5000}
+                              placeholder="e.g. Civil works"
+                              onChange={(e) =>
+                                updateItem(item.id, { section: e.target.value })
+                              }
+                            />
+                          </Field>
+                          <Field
+                            label="Work item *"
+                            error={
+                              errors.length && !item.name.trim()
+                                ? "Enter a work item name."
+                                : undefined
                             }
-                          />
-                        </Field>
-                        <div className="grid grid-cols-2 gap-3">
-                          <Field label="Unit">
-                            <select
-                              value={rate.unit}
+                          >
+                            <input
+                              value={item.name}
+                              maxLength={5000}
+                              placeholder="e.g. Vitrified tile flooring"
+                              onChange={(e) =>
+                                updateItem(item.id, { name: e.target.value })
+                              }
+                            />
+                          </Field>
+                          <Field label="Overview / inclusions">
+                            <textarea
+                              rows={2}
+                              value={item.description}
+                              maxLength={5000}
+                              placeholder="Material, brand / grade, dimensions, location, and whether labour and supply are included…"
+                              onChange={(e) =>
+                                updateItem(item.id, {
+                                  description: e.target.value,
+                                })
+                              }
+                            />
+                          </Field>
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                            <Field label="Unit">
+                              <select
+                                value={item.unit}
+                                onChange={(e) =>
+                                  updateItem(item.id, {
+                                    unit: e.target.value as LineItem["unit"],
+                                  })
+                                }
+                              >
+                                {units.map((unit) => (
+                                  <option key={unit}>{unit}</option>
+                                ))}
+                              </select>
+                            </Field>
+                            <Field
+                              label="Quantity *"
+                              error={
+                                errors.length && Number(item.quantity) <= 0
+                                  ? "Enter a quantity greater than zero."
+                                  : undefined
+                              }
+                            >
+                              <input
+                                inputMode="decimal"
+                                value={item.quantity}
+                                placeholder="1"
+                                onChange={(e) =>
+                                  setNumber(e.target.value, (quantity) =>
+                                    updateItem(item.id, { quantity }),
+                                  )
+                                }
+                              />
+                            </Field>
+                            <Field
+                              label={`Rate / ${item.unit} (${quote.currency}) *`}
+                              error={
+                                errors.length && item.rate === ""
+                                  ? "Enter a rate. Use 0 for work included at no charge."
+                                  : undefined
+                              }
+                            >
+                              <input
+                                inputMode="decimal"
+                                value={item.rate}
+                                placeholder="0.00"
+                                onChange={(e) =>
+                                  setNumber(e.target.value, (rate) =>
+                                    updateItem(item.id, { rate }),
+                                  )
+                                }
+                              />
+                            </Field>
+                            <Field label="Tax (%)">
+                              <input
+                                inputMode="decimal"
+                                value={item.tax}
+                                placeholder="0"
+                                onChange={(e) =>
+                                  setNumber(
+                                    e.target.value,
+                                    (tax) => updateItem(item.id, { tax }),
+                                    true,
+                                  )
+                                }
+                              />
+                            </Field>
+                            <div className="min-w-0">
+                              <span className="text-xs font-medium text-stone-600">
+                                Amount
+                              </span>
+                              <div className="mt-1.5 py-2.5 text-sm font-semibold break-all tabular-nums">
+                                {money(
+                                  totals.rows[index].amount,
+                                  quote.currency,
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <details className="rounded-lg border border-stone-200 p-3">
+                            <summary className="min-h-8 cursor-pointer text-sm font-medium text-stone-700">
+                              Specifications & optional details
+                              {item.specifications.length
+                                ? ` (${item.specifications.length} sections)`
+                                : ""}
+                            </summary>
+                            <div className="mt-4 space-y-4">
+                              <Button
+                                variant="secondary"
+                                onClick={() => saveTemplate(item)}
+                              >
+                                Save as firm template
+                              </Button>
+                              <ItemDetailEditor
+                                item={item}
+                                onChange={(patch) => updateItem(item.id, patch)}
+                              />
+                            </div>
+                          </details>
+                        </fieldset>
+                      ))}
+                    </div>
+                    <Button
+                      variant="secondary"
+                      className="w-full border-dashed"
+                      disabled={quote.items.length >= 100}
+                      onClick={() =>
+                        update({ items: [...quote.items, newItem()] })
+                      }
+                    >
+                      + Add work item
+                    </Button>
+                    <div className="grid gap-4 border-t border-stone-200 pt-5 sm:grid-cols-2">
+                      <Field
+                        label={
+                          quote.revision
+                            ? "Final adjustment type"
+                            : "Discount type"
+                        }
+                      >
+                        <select
+                          value={quote.discountType}
+                          onChange={(e) =>
+                            update({
+                              discountType: e.target
+                                .value as Quotation["discountType"],
+                              discount: "0",
+                            })
+                          }
+                        >
+                          <option value="percent">Percentage (%)</option>
+                          <option value="fixed">
+                            Fixed amount ({quote.currency})
+                          </option>
+                        </select>
+                      </Field>
+                      <Field
+                        label={`${quote.revision ? "Final adjustment" : "Discount"} (${quote.discountType === "percent" ? "%" : quote.currency})`}
+                      >
+                        <input
+                          inputMode="decimal"
+                          value={quote.discount}
+                          onChange={(e) =>
+                            setNumber(
+                              e.target.value,
+                              (discount) => update({ discount }),
+                              quote.discountType === "percent",
+                            )
+                          }
+                        />
+                      </Field>
+                      <Field
+                        label={`Shipping / additional charges (${quote.currency})`}
+                      >
+                        <input
+                          inputMode="decimal"
+                          value={quote.shipping}
+                          onChange={(e) =>
+                            setNumber(e.target.value, (shipping) =>
+                              update({ shipping }),
+                            )
+                          }
+                        />
+                      </Field>
+                    </div>
+                    <p className="rounded-lg bg-stone-50 p-3 text-xs text-stone-500">
+                      {quote.revision
+                        ? "The revision adjustment applies after all carried-forward and added amounts. "
+                        : "Discounts apply proportionally before item tax. "}
+                      Additional charges are added after tax and are not taxed.
+                      Tax IDs are printed as entered; this app does not verify
+                      them.
+                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-emerald-50 p-4 text-emerald-900">
+                      <span className="text-sm font-medium">
+                        Quotation total{" "}
+                        <span className="font-normal">({quote.currency})</span>
+                      </span>
+                      <span className="text-xl font-semibold break-all tabular-nums">
+                        {money(totals.total, quote.currency)}
+                      </span>
+                    </div>
+                  </Section>
+                  <Section
+                    number="V"
+                    title="Rates for additional / changed work"
+                  >
+                    <p className="text-stone-500">
+                      Record agreed rates for future additions, such as
+                      furniture per sq ft or electrical work per point. These
+                      rates do not add to the current total.
+                    </p>
+                    <div className="space-y-4">
+                      {quote.variationRates.map((rate, index) => (
+                        <fieldset
+                          key={rate.id}
+                          className="space-y-3 rounded-lg border border-stone-200 p-4"
+                        >
+                          <legend className="sr-only">
+                            Variation rate {index + 1}
+                          </legend>
+                          <Field label="Work / rate description">
+                            <input
+                              value={rate.name}
+                              maxLength={5000}
+                              placeholder="e.g. Additional furniture"
                               onChange={(e) =>
                                 update({
                                   variationRates: quote.variationRates.map(
                                     (r) =>
                                       r.id === rate.id
-                                        ? {
-                                            ...r,
-                                            unit: e.target
-                                              .value as LineItem["unit"],
-                                          }
+                                        ? { ...r, name: e.target.value }
                                         : r,
                                   ),
                                 })
                               }
-                            >
-                              {units.map((unit) => (
-                                <option key={unit}>{unit}</option>
-                              ))}
-                            </select>
+                            />
                           </Field>
-                          <Field label={`Rate (${quote.currency})`}>
-                            <input
-                              inputMode="decimal"
-                              value={rate.rate}
-                              placeholder="0.00"
-                              onChange={(e) =>
-                                setNumber(e.target.value, (value) =>
+                          <div className="grid grid-cols-2 gap-3">
+                            <Field label="Unit">
+                              <select
+                                value={rate.unit}
+                                onChange={(e) =>
                                   update({
                                     variationRates: quote.variationRates.map(
                                       (r) =>
                                         r.id === rate.id
-                                          ? { ...r, rate: value }
+                                          ? {
+                                              ...r,
+                                              unit: e.target
+                                                .value as LineItem["unit"],
+                                            }
                                           : r,
                                     ),
-                                  }),
-                                )
+                                  })
+                                }
+                              >
+                                {units.map((unit) => (
+                                  <option key={unit}>{unit}</option>
+                                ))}
+                              </select>
+                            </Field>
+                            <Field label={`Rate (${quote.currency})`}>
+                              <input
+                                inputMode="decimal"
+                                value={rate.rate}
+                                placeholder="0.00"
+                                onChange={(e) =>
+                                  setNumber(e.target.value, (value) =>
+                                    update({
+                                      variationRates: quote.variationRates.map(
+                                        (r) =>
+                                          r.id === rate.id
+                                            ? { ...r, rate: value }
+                                            : r,
+                                      ),
+                                    }),
+                                  )
+                                }
+                              />
+                            </Field>
+                          </div>
+                          <Field label="Conditions / inclusions">
+                            <textarea
+                              rows={2}
+                              value={rate.notes}
+                              maxLength={5000}
+                              placeholder="What the rate covers, measurement basis, and approval requirements"
+                              onChange={(e) =>
+                                update({
+                                  variationRates: quote.variationRates.map(
+                                    (r) =>
+                                      r.id === rate.id
+                                        ? { ...r, notes: e.target.value }
+                                        : r,
+                                  ),
+                                })
                               }
                             />
                           </Field>
-                        </div>
-                        <Field label="Conditions / inclusions">
-                          <textarea
-                            rows={2}
-                            value={rate.notes}
-                            maxLength={5000}
-                            placeholder="What the rate covers, measurement basis, and approval requirements"
-                            onChange={(e) =>
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              if (
+                                (rate.name || rate.rate || rate.notes) &&
+                                !window.confirm("Remove this variation rate?")
+                              )
+                                return;
                               update({
-                                variationRates: quote.variationRates.map((r) =>
-                                  r.id === rate.id
-                                    ? { ...r, notes: e.target.value }
-                                    : r,
+                                variationRates: quote.variationRates.filter(
+                                  (r) => r.id !== rate.id,
                                 ),
-                              })
-                            }
-                          />
-                        </Field>
+                              });
+                            }}
+                          >
+                            Remove rate
+                          </Button>
+                        </fieldset>
+                      ))}
+                    </div>
+                    <Button
+                      variant="secondary"
+                      disabled={quote.variationRates.length >= 30}
+                      onClick={() =>
+                        update({
+                          variationRates: [
+                            ...quote.variationRates,
+                            {
+                              id: crypto.randomUUID(),
+                              name: "",
+                              unit: "sq ft",
+                              rate: "",
+                              notes: "",
+                            },
+                          ],
+                        })
+                      }
+                    >
+                      + Add variation rate
+                    </Button>
+                  </Section>
+                </div>
+                <div hidden={step !== 2} className="space-y-5">
+                  <Section number="04" title="Scope, exclusions & payment">
+                    {field(
+                      "scope",
+                      "Scope of work",
+                      "Areas covered, drawings referenced, materials and labour included, site supervision…",
+                      true,
+                    )}
+                    {field(
+                      "exclusions",
+                      "Exclusions & client responsibilities",
+                      "e.g. Approval fees, structural alterations, client-supplied fixtures, access and utilities…",
+                      true,
+                    )}
+                    {field(
+                      "paymentTerms",
+                      "Payment milestones",
+                      "Enter agreed milestones, amounts or percentages, and when each payment is due.",
+                      true,
+                    )}
+                    <p className="text-xs text-stone-500">
+                      Define the scope and payment schedule for this project. No
+                      advance percentage or delivery commitment is assumed.
+                    </p>
+                  </Section>
+                  <Section number="05" title="Branding & additional details">
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <div className="space-y-3">
+                        <div className="text-xs font-medium text-stone-600">
+                          Business logo
+                        </div>
                         <Button
-                          variant="ghost"
-                          onClick={() => {
-                            if (
-                              (rate.name || rate.rate || rate.notes) &&
-                              !window.confirm("Remove this variation rate?")
-                            )
-                              return;
-                            update({
-                              variationRates: quote.variationRates.filter(
-                                (r) => r.id !== rate.id,
-                              ),
-                            });
-                          }}
+                          variant="secondary"
+                          className="w-full"
+                          onClick={() => logoInput.current?.click()}
                         >
-                          Remove rate
+                          {quote.logo ? "Replace logo" : "+ Upload your logo"}
                         </Button>
+                        <input
+                          ref={logoInput}
+                          type="file"
+                          accept="image/png,image/jpeg"
+                          className="hidden"
+                          aria-label="Upload business logo"
+                          onChange={(e) => {
+                            void uploadLogo(e.target.files?.[0]);
+                            e.target.value = "";
+                          }}
+                        />
+                        <span className="block text-[11px] text-stone-500">
+                          PNG or JPEG, up to 500 KB.
+                        </span>
+                        {quote.logo && (
+                          <Button
+                            variant="ghost"
+                            onClick={() => update({ logo: "" })}
+                          >
+                            Remove logo
+                          </Button>
+                        )}
+                      </div>
+                      <fieldset>
+                        <legend className="mb-3 text-xs font-medium text-stone-600">
+                          Document color
+                        </legend>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(accents).map(([name, color]) => (
+                            <label
+                              key={name}
+                              className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-stone-200 px-2 text-xs capitalize"
+                            >
+                              <input
+                                type="radio"
+                                name="accent"
+                                value={name}
+                                checked={quote.accent === name}
+                                onChange={() =>
+                                  update({
+                                    accent: name as Quotation["accent"],
+                                  })
+                                }
+                                className="h-4 w-4 accent-emerald-800"
+                              />
+                              <span
+                                aria-hidden="true"
+                                className="size-3 rounded-full"
+                                style={{ background: color }}
+                              />
+                              {name}
+                            </label>
+                          ))}
+                        </div>
                       </fieldset>
-                    ))}
-                  </div>
+                    </div>
+                    {field(
+                      "notes",
+                      "Notes",
+                      "A personal note for your client…",
+                      true,
+                    )}
+                    {field(
+                      "terms",
+                      "Terms & conditions",
+                      "Quotation validity, variation approvals, warranties, and any other agreed conditions…",
+                      true,
+                    )}
+                  </Section>
+                </div>
+                <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                   <Button
                     variant="secondary"
-                    disabled={quote.variationRates.length >= 30}
-                    onClick={() =>
-                      update({
-                        variationRates: [
-                          ...quote.variationRates,
-                          {
-                            id: crypto.randomUUID(),
-                            name: "",
-                            unit: "sq ft",
-                            rate: "",
-                            notes: "",
-                          },
-                        ],
-                      })
-                    }
+                    disabled={step === 0}
+                    onClick={() => goToStep(step - 1)}
                   >
-                    + Add variation rate
+                    ← Back
                   </Button>
-                </Section>
-                <Section number="04" title="Scope, exclusions & payment">
-                  {field(
-                    "scope",
-                    "Scope of work",
-                    "Areas covered, drawings referenced, materials and labour included, site supervision…",
-                    true,
-                  )}
-                  {field(
-                    "exclusions",
-                    "Exclusions & client responsibilities",
-                    "e.g. Approval fees, structural alterations, client-supplied fixtures, access and utilities…",
-                    true,
-                  )}
-                  {field(
-                    "paymentTerms",
-                    "Payment milestones",
-                    "Enter agreed milestones, amounts or percentages, and when each payment is due.",
-                    true,
-                  )}
-                  <p className="text-xs text-stone-500">
-                    Define the scope and payment schedule for this project. No
-                    advance percentage or delivery commitment is assumed.
-                  </p>
-                </Section>
-                <Section number="05" title="Branding & additional details">
-                  <div className="grid gap-5 sm:grid-cols-2">
-                    <div className="space-y-3">
-                      <div className="text-xs font-medium text-stone-600">
-                        Business logo
-                      </div>
-                      <Button
-                        variant="secondary"
-                        className="w-full"
-                        onClick={() => logoInput.current?.click()}
-                      >
-                        {quote.logo ? "Replace logo" : "+ Upload your logo"}
-                      </Button>
-                      <input
-                        ref={logoInput}
-                        type="file"
-                        accept="image/png,image/jpeg"
-                        className="hidden"
-                        aria-label="Upload business logo"
-                        onChange={(e) => {
-                          void uploadLogo(e.target.files?.[0]);
-                          e.target.value = "";
-                        }}
-                      />
-                      <span className="block text-[11px] text-stone-500">
-                        PNG or JPEG, up to 500 KB.
-                      </span>
-                      {quote.logo && (
-                        <Button
-                          variant="ghost"
-                          onClick={() => update({ logo: "" })}
-                        >
-                          Remove logo
-                        </Button>
-                      )}
-                    </div>
-                    <fieldset>
-                      <legend className="mb-3 text-xs font-medium text-stone-600">
-                        Document color
-                      </legend>
-                      <div className="flex flex-wrap gap-2">
-                        {Object.entries(accents).map(([name, color]) => (
-                          <label
-                            key={name}
-                            className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-stone-200 px-2 text-xs capitalize"
-                          >
-                            <input
-                              type="radio"
-                              name="accent"
-                              value={name}
-                              checked={quote.accent === name}
-                              onChange={() =>
-                                update({ accent: name as Quotation["accent"] })
-                              }
-                              className="h-4 w-4 accent-emerald-800"
-                            />
-                            <span
-                              aria-hidden="true"
-                              className="size-3 rounded-full"
-                              style={{ background: color }}
-                            />
-                            {name}
-                          </label>
-                        ))}
-                      </div>
-                    </fieldset>
-                  </div>
-                  {field(
-                    "notes",
-                    "Notes",
-                    "A personal note for your client…",
-                    true,
-                  )}
-                  {field(
-                    "terms",
-                    "Terms & conditions",
-                    "Quotation validity, variation approvals, warranties, and any other agreed conditions…",
-                    true,
-                  )}
-                </Section>
-                <div className="flex flex-wrap justify-between gap-3">
-                  <Button variant="danger" onClick={removeQuote}>
-                    Delete quotation
-                  </Button>
-                  <Button variant="primary" onClick={() => setView("preview")}>
-                    Preview quotation →
+                  <span className="min-w-0 text-xs text-stone-600">
+                    <span className="block">Step {step + 1} of 3</span>
+                    <span className="block font-semibold break-all tabular-nums">
+                      {money(totals.total, quote.currency)}
+                    </span>
+                  </span>
+                  <Button variant="primary" type="submit">
+                    {step < 2 ? "Continue →" : "Review PDF →"}
                   </Button>
                 </div>
+                <Button variant="danger" onClick={removeQuote}>
+                  Delete quotation
+                </Button>
               </form>
             )}
-            <div
-              className={`print-shell min-w-0 ${view === "edit" ? "hidden 2xl:block" : ""}`}
-            >
-              <div className="no-print mb-3 flex items-center justify-between">
-                <span className="text-xs font-medium text-stone-500">
-                  LIVE PREVIEW
-                </span>
-                <span className="text-[10px] text-stone-500">
-                  Updates as you type
-                </span>
+            {view === "edit" && (
+              <aside className="no-print space-y-5 rounded-xl border border-stone-200 bg-white p-5 xl:sticky xl:top-6">
+                <div>
+                  <h2>Quotation summary</h2>
+                  <p className="mt-2 break-words text-stone-600">
+                    {quote.title || "Untitled project"}
+                  </p>
+                  <p className="break-words text-stone-600">
+                    {quote.to.name || "Add a client to get started"}
+                  </p>
+                </div>
+                <div className="flex flex-wrap justify-between gap-2 border-t border-stone-200 pt-4 text-sm">
+                  <span>
+                    {quote.items.length} work{" "}
+                    {quote.items.length === 1 ? "item" : "items"}
+                  </span>
+                  <span className="font-medium tabular-nums">
+                    {quote.currency}
+                  </span>
+                </div>
+                <div className="rounded-lg bg-stone-50 p-4">
+                  <p className="text-stone-600">Quotation total</p>
+                  <p className="mt-1 text-2xl font-semibold break-all tabular-nums">
+                    {money(totals.total, quote.currency)}
+                  </p>
+                  <p className="mt-2 text-xs text-stone-600">
+                    Includes discounts, item taxes and additional charges.
+                  </p>
+                </div>
+                <div>
+                  <h3>
+                    {readiness.length
+                      ? "Before you download"
+                      : "Ready to download"}
+                  </h3>
+                  {readiness.length ? (
+                    <ul className="mt-2 space-y-2">
+                      {readiness.map((issue) => (
+                        <li key={issue}>
+                          <button
+                            type="button"
+                            className="min-h-8 cursor-pointer text-left text-xs leading-5 text-stone-600 underline underline-offset-4 focus-visible:outline-2"
+                            onClick={() => fixIssue(issue)}
+                          >
+                            {issue}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 text-stone-600">
+                      All required details are filled in. Review the PDF when
+                      you’re ready.
+                    </p>
+                  )}
+                </div>
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => setView("preview")}
+                >
+                  Preview PDF →
+                </Button>
+                <p className="text-xs text-stone-600">
+                  Drafts save automatically in this browser. You can move
+                  between steps at any time.
+                </p>
+              </aside>
+            )}
+            {view === "preview" && (
+              <div className="print-shell min-w-0">
+                <div className="no-print mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-stone-500">
+                    LIVE PREVIEW
+                  </span>
+                  <span className="text-[10px] text-stone-500">
+                    Updates as you type
+                  </span>
+                </div>
+                <QuotationDocument quote={quote} onReady={onPdfReady} />
+                <p className="no-print mt-3 text-center text-xs text-stone-500">
+                  This is the actual PDF, including its page breaks. Downloads
+                  use the same document.
+                </p>
               </div>
-              <QuotationDocument quote={quote} onReady={onPdfReady} />
-              <p className="no-print mt-3 text-center text-xs text-stone-500">
-                This is the actual PDF, including its page breaks. Downloads use
-                the same document.
-              </p>
-            </div>
+            )}
             {view === "preview" && (
               <aside className="no-print space-y-5 rounded-xl border border-stone-200 bg-white p-5">
-                <h2>Ready for your client?</h2>
+                <h2>
+                  {readiness.length
+                    ? "A few details to complete"
+                    : "Ready for your client?"}
+                </h2>
                 <p className="text-stone-500">
-                  Review your details, then download a PDF or print your
-                  quotation.
+                  {readiness.length
+                    ? "You can preview your draft now. Complete the required details before downloading or printing."
+                    : "Review your details, then download a PDF or print your quotation."}
                 </p>
                 <Button
                   variant="primary"
@@ -1568,8 +1872,7 @@ export default function QuotationApp() {
                   className="w-full"
                   onClick={async () => {
                     const issues = exportErrors(quote);
-                    setErrors(issues);
-                    if (issues.length) return;
+                    if (showIssues(issues)) return;
                     try {
                       const { openPdfForPrint } = await import("@/lib/pdf");
                       const prepared = previewPdf.current;
