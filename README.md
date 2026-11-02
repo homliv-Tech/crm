@@ -17,6 +17,15 @@ A Next.js 16 CRM backed by **Neon Postgres** and **Drizzle ORM**. The existing c
 
 Requires Bun, Node.js 20.19+ (used by the project scripts), and a Neon project.
 
+**Upgrading an existing checkout:** Before running any Bun command, move the old root `.env.local` to `apps/web/.env.local`. If the destination already exists, reconcile the files manually first, keeping the intended database settings and the existing `WORKOS_COOKIE_PASSWORD`, then remove the root copy. Do not overwrite either file without checking it. Keeping the cookie password preserves existing sessions.
+
+```bash
+# If apps/web/.env.local does not already exist:
+mv .env.local apps/web/.env.local
+```
+
+Bun can load a root `.env.local` and pass its values to the app, where they take precedence over the app's environment file. Ensure the root copy is gone before continuing.
+
 ```bash
 bun install
 bun run setup
