@@ -59,7 +59,7 @@ export default function QuotationDocument({
               ? "PDF preview · matches your download"
               : "Updating PDF preview…"}
         </span>
-        {preview && (
+        {preview && preview.key === key && !error && (
           <a
             href={preview.url}
             target="_blank"
