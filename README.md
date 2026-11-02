@@ -1,4 +1,15 @@
-> Monorepo: the CRM lives in `apps/web`; shared packages belong in `packages/`. Run Bun commands from the repository root and place environment variables in `apps/web/.env.local`.
+> Monorepo: the CRM lives in `apps/web`, and the standalone quotation generator lives in `apps/quotations`; shared packages belong in `packages/`. Run Bun commands from the repository root and place environment variables in `apps/web/.env.local`.
+
+## Quotation generator
+
+[Quotient](apps/quotations/README.md) creates architecture, renovation, and building quotations for homeowners and companies, with project sites, work sections, construction units, scope, exclusions, payment milestones, PDF download, and browser-local drafts with JSON backup/restore. It runs independently of the CRM and needs no environment variables or database.
+
+```bash
+bun install
+bun run dev:quotations
+```
+
+Open http://localhost:3001. `bun run dev` runs both apps; `bun run start:quotations` starts the production quotation app after building. Drafts stay in the browser, and sending/acceptance statuses are managed manually.
 
 # Sales CRM
 

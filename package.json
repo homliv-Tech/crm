@@ -18,7 +18,9 @@
     "db:migrate": "bun run --filter @crm/web db:migrate",
     "db:studio": "bun run --filter @crm/web db:studio",
     "db:seed": "bun run --filter @crm/web db:seed",
-    "test:integration": "bun run --filter @crm/web test:integration"
+    "test:integration": "bun run --filter @crm/web test:integration",
+    "dev:quotations": "bun run --filter @crm/quotations dev",
+    "start:quotations": "bun run --filter @crm/quotations start"
   },
   "devDependencies": {
     "turbo": "^2.5.0"
