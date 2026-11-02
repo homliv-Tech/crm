@@ -1,7 +1,7 @@
 {
   "name": "crm-monorepo",
   "private": true,
-  "packageManager": "npm@10.9.2",
+  "packageManager": "bun@1.4.4",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -9,16 +9,16 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
-    "start": "npm run start --workspace @crm/web --",
+    "start": "bun run --filter @crm/web start",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "setup": "npm run setup --workspace @crm/web",
-    "db:generate": "npm run db:generate --workspace @crm/web",
-    "db:migrate": "npm run db:migrate --workspace @crm/web",
-    "db:studio": "npm run db:studio --workspace @crm/web",
-    "db:seed": "npm run db:seed --workspace @crm/web --",
-    "test:integration": "npm run test:integration --workspace @crm/web --"
+    "setup": "bun run --filter @crm/web setup",
+    "db:generate": "bun run --filter @crm/web db:generate",
+    "db:migrate": "bun run --filter @crm/web db:migrate",
+    "db:studio": "bun run --filter @crm/web db:studio",
+    "db:seed": "bun run --filter @crm/web db:seed",
+    "test:integration": "bun run --filter @crm/web test:integration"
   },
   "devDependencies": {
     "turbo": "^2.5.0"
