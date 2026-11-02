@@ -154,6 +154,9 @@ export default function QuotationApp() {
         ...current,
         id: next.id,
         number: next.number,
+        issued: next.issued,
+        validUntil: next.validUntil,
+        revision: null,
         status: "Draft",
         updatedAt: next.updatedAt,
         items: current.items.map((item) => ({
