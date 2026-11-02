@@ -40,7 +40,7 @@
     border-radius: 0.5rem;
     background: white;
     padding: 0.625rem 0.75rem;
-    font-size: 0.875rem;
+    font-size: 1rem;
     color: #292524;
   }
   input:focus-visible,
@@ -57,6 +57,16 @@
   }
   textarea {
     resize: vertical;
+  }
+  [aria-invalid="true"] {
+    border-color: #b91c1c;
+  }
+  @media (min-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: 0.875rem;
+    }
   }
   @media (min-width: 768px) {
     h1 {
