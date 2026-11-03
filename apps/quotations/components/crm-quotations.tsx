@@ -120,11 +120,12 @@ export default function CrmQuotations({
       setMessage("");
       try {
         await deleteCrmQuotation(request, row.id);
-        if (!mounted.current) return;
-        setRows((previous) => previous.filter((q) => q.id !== row.id));
+        // The parent workspace survives this client-specific list unmounting.
         setWorkspace(
           (previous) => previous && resetQuotationCrmVersion(previous, row.id),
         );
+        if (!mounted.current) return;
+        setRows((previous) => previous.filter((q) => q.id !== row.id));
         setMessage(
           "Deleted from CRM. Any local draft remains in this browser.",
         );
