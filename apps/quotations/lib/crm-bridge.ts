@@ -6,7 +6,20 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
   z.object({
     type: z.literal(BRIDGE_REQUEST),
     id: z.uuid(),
+    action: z.literal("delete"),
+    quotationId: z.uuid(),
+  }),
+  z.object({
+    type: z.literal(BRIDGE_REQUEST),
+    id: z.uuid(),
     action: z.literal("snapshot"),
+  }),
+  z.object({
+    type: z.literal(BRIDGE_REQUEST),
+    id: z.uuid(),
+    action: z.literal("quotations"),
+    companyId: z.uuid(),
+    status: z.enum(["active", "Accepted", "Declined"]),
   }),
   z.object({
     type: z.literal(BRIDGE_REQUEST),
@@ -27,7 +40,22 @@ export const bridgeRequestSchema = z.discriminatedUnion("action", [
 export function bridgeOperation(path: string, init?: RequestInit) {
   if (path === "/api/crm" && !init?.method)
     return { action: "snapshot" as const };
+  const list =
+    /^\/api\/quotations\?status=(active|Accepted|Declined)&companyId=([^&]+)$/.exec(
+      path,
+    );
+  if (list && !init?.method)
+    return {
+      action: "quotations" as const,
+      companyId: z.uuid().parse(decodeURIComponent(list[2])),
+      status: z.enum(["active", "Accepted", "Declined"]).parse(list[1]),
+    };
   const match = /^\/api\/quotations\?id=([^&]+)$/.exec(path);
+  if (match && init?.method === "DELETE")
+    return {
+      action: "delete" as const,
+      quotationId: z.uuid().parse(decodeURIComponent(match[1])),
+    };
   if (match && !init?.method)
     return {
       action: "quotation" as const,
@@ -55,9 +83,18 @@ export function bridgeEndpoint(request: z.infer<typeof bridgeRequestSchema>): {
   switch (request.action) {
     case "snapshot":
       return { path: "/api/crm" };
+    case "quotations":
+      return {
+        path: `/api/quotations?status=${request.status}&companyId=${encodeURIComponent(request.companyId)}`,
+      };
     case "quotation":
       return {
         path: `/api/quotations?id=${encodeURIComponent(request.quotationId)}`,
+      };
+    case "delete":
+      return {
+        path: `/api/quotations?id=${encodeURIComponent(request.quotationId)}`,
+        init: { method: "DELETE" },
       };
     case "save":
       return {

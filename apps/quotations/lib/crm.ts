@@ -1,4 +1,34 @@
-import type { Quotation } from "./quotation";
+import { quotationSchema, type Quotation, type Workspace } from "./quotation";
+
+export type CrmQuotationSummary = {
+  id: string;
+  number: string;
+  title: string;
+  client: string;
+  status: Quotation["status"];
+};
+
+export function openCrmQuotation(
+  workspace: Workspace,
+  row: { document: unknown; version: number },
+): Workspace {
+  const loaded = quotationSchema.parse({
+    ...(row.document as object),
+    crmVersion: row.version,
+  });
+  const existing = workspace.quotes.find((q) => q.id === loaded.id);
+  if (!existing && workspace.quotes.length >= 100)
+    throw new Error(
+      "Workspace is full. Remove a local draft, then open this quotation again.",
+    );
+  const selected =
+    existing && existing.updatedAt > loaded.updatedAt ? existing : loaded;
+  return {
+    ...workspace,
+    activeId: selected.id,
+    quotes: [selected, ...workspace.quotes.filter((q) => q.id !== selected.id)],
+  };
+}
 
 export type CrmData = {
   companies: { id: string; name: string; description: string }[];

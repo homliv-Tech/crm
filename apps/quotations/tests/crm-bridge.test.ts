@@ -61,7 +61,7 @@ test("connection configuration fails closed without breaking guest mode", () => 
     "http://localhost:3000",
   );
 });
-test("quotation connector only forwards the three supported CRM operations", () => {
+test("quotation connector only forwards supported CRM operations", () => {
   const id = crypto.randomUUID();
   const commands = [
     bridgeOperation("/api/crm"),
@@ -94,6 +94,42 @@ test("quotation connector only forwards the three supported CRM operations", () 
   ])
     assert.throws(() => bridgeOperation(path));
   assert.throws(() => bridgeOperation("/api/quotations", { method: "DELETE" }));
+  const deletion = bridgeRequestSchema.parse({
+    type: BRIDGE_REQUEST,
+    id: crypto.randomUUID(),
+    ...bridgeOperation(`/api/quotations?id=${id}`, { method: "DELETE" }),
+  });
+  assert.deepEqual(bridgeEndpoint(deletion), {
+    path: `/api/quotations?id=${id}`,
+    init: { method: "DELETE" },
+  });
+  assert.throws(() =>
+    bridgeOperation("/api/quotations?id=invalid", { method: "DELETE" }),
+  );
+  for (const status of ["active", "Accepted", "Declined"]) {
+    const path = `/api/quotations?status=${status}&companyId=${id}`;
+    const command = bridgeRequestSchema.parse({
+      type: BRIDGE_REQUEST,
+      id,
+      ...bridgeOperation(path),
+    });
+    assert.equal(bridgeEndpoint(command).path, path);
+    assert.equal(command.action === "quotations" && command.companyId, id);
+  }
+  assert.throws(() => bridgeOperation("/api/quotations?status=active"));
+  assert.equal(
+    bridgeRequestSchema.safeParse({
+      type: BRIDGE_REQUEST,
+      id,
+      action: "quotations",
+      status: "active",
+    }).success,
+    false,
+  );
+  assert.throws(() => bridgeOperation("/api/quotations?status=invalid"));
+  assert.throws(() =>
+    bridgeOperation("/api/quotations?status=active&companyId=anything"),
+  );
   assert.equal(
     bridgeRequestSchema.safeParse({
       type: BRIDGE_REQUEST,
