@@ -14,6 +14,7 @@ import {
   type CrmQuotationSummary,
 } from "../lib/crm";
 import type { Workspace } from "../lib/quotation";
+import { resetQuotationCrmVersion } from "../lib/workspace";
 import Button from "./button";
 import { Field } from "./editor/fields";
 import QuotationContextMenu from "./quotation-context-menu";
@@ -118,13 +119,7 @@ export default function CrmQuotations({
       if (!mounted.current) return;
       setRows((previous) => previous.filter((q) => q.id !== row.id));
       setWorkspace(
-        (previous) =>
-          previous && {
-            ...previous,
-            quotes: previous.quotes.map((q) =>
-              q.id === row.id ? { ...q, crmVersion: 0 } : q,
-            ),
-          },
+        (previous) => previous && resetQuotationCrmVersion(previous, row.id),
       );
       setMessage("Deleted from CRM. Any local draft remains in this browser.");
     } catch (error) {
