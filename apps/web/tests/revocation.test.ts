@@ -1,5 +1,6 @@
-import { afterEach, test } from "node:test";
+import { afterEach, mock, test } from "node:test";
 import assert from "node:assert/strict";
+import { toast } from "@crm/notifications/toast";
 import { useCompaniesStore } from "../stores/companies-store";
 import { COMPANIES } from "../data/companies";
 import { createExportHandler } from "../lib/crm/export-handler";
@@ -55,10 +56,12 @@ function assertCleared() {
   assert.equal(state.profileName, null);
 }
 afterEach(() => {
+  mock.restoreAll();
   globalThis.fetch = originalFetch;
   useCompaniesStore.setState(useCompaniesStore.getInitialState(), true);
 });
 test("revoked active tabs clear cached records, selections, details, and export access", async () => {
+  const dismiss = mock.method(toast, "dismiss");
   for (const status of [401, 403]) {
     seed();
     globalThis.fetch = async () =>
@@ -68,8 +71,10 @@ test("revoked active tabs clear cached records, selections, details, and export 
     assertCleared();
     assert.equal(await useCompaniesStore.getState().exportCompanies(), null);
   }
+  assert.equal(dismiss.mock.callCount(), 2);
 });
 test("access-check failures also hide and clear workspace data", async () => {
+  const dismiss = mock.method(toast, "dismiss");
   for (const failure of ["offline", "provider"] as const) {
     seed();
     globalThis.fetch = async () => {
@@ -80,6 +85,7 @@ test("access-check failures also hide and clear workspace data", async () => {
     assert.equal(useCompaniesStore.getState().accessState, "unavailable");
     assertCleared();
   }
+  assert.equal(dismiss.mock.callCount(), 2);
 });
 test("rejected writes check whether read access was revoked and clear cached data", async () => {
   seed();

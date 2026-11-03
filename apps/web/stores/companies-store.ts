@@ -73,7 +73,8 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   loading: true,
   saving: false,
   error: null,
-  blockAccess: (accessState, error) =>
+  blockAccess: (accessState, error) => {
+    toast.dismiss();
     set((state) => ({
       accessState,
       accessEpoch: state.accessEpoch + 1,
@@ -94,7 +95,8 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       newCompanyOpen: false,
       searchOpen: false,
       unreadNotificationIds: [],
-    })),
+    }));
+  },
   checkAccess: async (hide = false) => {
     if (hide)
       set((state) => ({
