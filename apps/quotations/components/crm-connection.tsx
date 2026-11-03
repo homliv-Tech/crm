@@ -124,6 +124,7 @@ export default function CrmConnection({
   const projects =
     data?.deals.filter((p) => p.companyId === link?.companyId) ?? [];
   async function save() {
+    const toastId = `crm-save:${quote.id}`;
     setBusy(true);
     try {
       const result = await request("/api/quotations", {
@@ -146,11 +147,13 @@ export default function CrmConnection({
       toast.success(
         "Quotation saved to CRM",
         `${quote.number} · Further edits stay local until you save again.`,
+        toastId,
       );
     } catch (error) {
       toast.error(
         `Could not save quotation ${quote.number} to CRM`,
         error instanceof Error ? error.message : "Try again.",
+        toastId,
       );
     } finally {
       setBusy(false);

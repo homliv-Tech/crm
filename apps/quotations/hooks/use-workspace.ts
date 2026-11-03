@@ -130,6 +130,7 @@ export function useWorkspace(onImport: () => void) {
     setBlocked(false);
     onImport();
     setSaveState("Saved in this browser");
+    setMessage("");
     toast.success(
       "Quotation backup imported",
       `${file.name} · ${imported.quotes.length} quotation(s) restored.`,

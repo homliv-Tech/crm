@@ -211,6 +211,13 @@ export default function QuotationApp({
     }
     const template = saveableTemplate(item);
     setWorkspace({ ...currentWorkspace, templates: [...templates, template] });
+    setMessage((message) =>
+      message === "Name this work item before saving it as a template." ||
+      message ===
+        "You can save up to 50 firm templates. Remove an old template to make room."
+        ? ""
+        : message,
+    );
     toast.success(
       "Work template saved",
       `${item.name} · Available in the package menu.`,

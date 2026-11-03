@@ -158,6 +158,9 @@ export default function PasskeySettings({ email }: { email: string }) {
       try {
         setPasskeys(await load());
       } catch {
+        setError(
+          "Passkey added, but the list could not refresh. Use Reload to try again.",
+        );
         toast.error(
           "Passkey added, but the list could not refresh. Reload to see it.",
         );
