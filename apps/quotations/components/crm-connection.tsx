@@ -19,6 +19,7 @@ import {
 import { Field } from "./editor/fields";
 import Button from "./button";
 import CrmQuotations from "./crm-quotations";
+import { createCrmMutationRunner } from "../lib/crm-mutations";
 
 type Props = {
   request?: typeof crmRequest;
@@ -44,6 +45,7 @@ export default function CrmConnection({
   const [data, setData] = useState<CrmData | null>(null);
   const [message, setMessage] = useState("Loading CRM clients…");
   const [busy, setBusy] = useState(true);
+  const [runMutation] = useState(() => createCrmMutationRunner(setBusy));
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let active = true;
@@ -125,40 +127,39 @@ export default function CrmConnection({
   const projects =
     data?.deals.filter((p) => p.companyId === link?.companyId) ?? [];
   async function save() {
-    const toastId = `crm-save:${quote.id}`;
-    setBusy(true);
-    try {
-      const result = await request("/api/quotations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ document: quote, version: quote.crmVersion }),
-      });
-      // Only update the saved draft, even if the user switched quotations during the request.
-      setWorkspace(
-        (previous) =>
-          previous && {
-            ...previous,
-            quotes: previous.quotes.map((q) =>
-              q.id === quote.id
-                ? { ...q, crmVersion: result.quotation.version }
-                : q,
-            ),
-          },
-      );
-      toast.success(
-        "Quotation saved to CRM",
-        `${quote.number} · Further edits stay local until you save again.`,
-        toastId,
-      );
-    } catch (error) {
-      toast.error(
-        `Could not save quotation ${quote.number} to CRM`,
-        error instanceof Error ? error.message : "Try again.",
-        toastId,
-      );
-    } finally {
-      setBusy(false);
-    }
+    await runMutation(async () => {
+      const toastId = `crm-save:${quote.id}`;
+      try {
+        const result = await request("/api/quotations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ document: quote, version: quote.crmVersion }),
+        });
+        // Only update the saved draft, even if the user switched quotations during the request.
+        setWorkspace(
+          (previous) =>
+            previous && {
+              ...previous,
+              quotes: previous.quotes.map((q) =>
+                q.id === quote.id
+                  ? { ...q, crmVersion: result.quotation.version }
+                  : q,
+              ),
+            },
+        );
+        toast.success(
+          "Quotation saved to CRM",
+          `${quote.number} · Further edits stay local until you save again.`,
+          toastId,
+        );
+      } catch (error) {
+        toast.error(
+          `Could not save quotation ${quote.number} to CRM`,
+          error instanceof Error ? error.message : "Try again.",
+          toastId,
+        );
+      }
+    });
   }
   return (
     <section className="space-y-4" aria-label="CRM connection">
@@ -166,7 +167,8 @@ export default function CrmConnection({
         <CrmQuotations
           key={link?.companyId ?? "unlinked"}
           companyId={link?.companyId}
-          canDelete={data.role !== "viewer"}
+          canDelete={data.role !== "viewer" && !busy}
+          runMutation={runMutation}
           request={request}
           workspace={workspace}
           setWorkspace={setWorkspace}
