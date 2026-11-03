@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { calculate, money, type Quotation } from "@crm/quotations/quotation";
 import QuotationContextMenu from "@crm/quotations/context-menu";
+import { resetStoredQuotationCrmVersion } from "@crm/quotations/workspace";
 
 type SavedQuotation = { id: string; document: Quotation; updatedAt: string };
 export default function ClientQuotations({ companyId }: { companyId: string }) {
@@ -56,6 +57,14 @@ export default function ClientQuotations({ companyId }: { companyId: string }) {
       if (!response.ok && response.status !== 404)
         throw new Error(result.error || "Could not delete quotation.");
       setQuotes((previous) => previous.filter((q) => q.id !== id));
+      try {
+        resetStoredQuotationCrmVersion(window.localStorage, id);
+      } catch {
+        setStatus(
+          "Quotation deleted from CRM, but the browser draft could not be updated. Export a backup before reloading the quotation generator.",
+        );
+        return;
+      }
       setStatus("Quotation deleted from CRM.");
     } catch (error) {
       setStatus(

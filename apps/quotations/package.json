@@ -35,6 +35,7 @@
   "exports": {
     "./app": "./components/quotation-app.tsx",
     "./quotation": "./lib/quotation.ts",
+    "./workspace": "./lib/workspace.ts",
     "./crm-bridge": "./lib/crm-bridge.ts",
     "./context-menu": "./components/quotation-context-menu.tsx",
     "./styles": "./app/editor.css"

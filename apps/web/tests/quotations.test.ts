@@ -167,6 +167,11 @@ test("quotation API enforces access, origin, client ownership and optimistic sav
       new Request(`https://crm.example/api/quotations?companyId=${other.id}`),
     );
     assert.equal((await surviving.json()).quotations.length, 3);
+    // Resetting the browser version allows an explicit save to recreate the row.
+    assert.equal((await post(2)).status, 409);
+    assert.equal((await post(0)).status, 200);
+    // Another zero-version save cannot overwrite the recreated quotation.
+    assert.equal((await post(0)).status, 409);
   } finally {
     await client.close();
   }
