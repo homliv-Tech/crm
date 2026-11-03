@@ -177,10 +177,21 @@ export default function WorkPricingStep({
             onClick={() => {
               if (
                 quote.items.some(
-                  (item) => item.name || item.rate || item.description,
+                  (item) =>
+                    item.name ||
+                    item.rate ||
+                    item.description ||
+                    item.room ||
+                    item.sku ||
+                    item.changes ||
+                    item.specifications.length > 0 ||
+                    item.section !== "General" ||
+                    item.unit !== "nos" ||
+                    item.quantity !== "1" ||
+                    item.tax !== "0",
                 ) &&
                 !window.confirm(
-                  "Replace the current work items with a starter list? Existing quantities, rates and descriptions will be removed.",
+                  "Replace the current work items with a starter list? All existing item details, specifications, quantities and pricing will be removed.",
                 )
               )
                 return;
