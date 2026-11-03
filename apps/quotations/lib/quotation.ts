@@ -90,6 +90,15 @@ export const itemSchema = z.object({
 export const quotationSchema = z
   .object({
     id: z.string().min(1).max(100),
+    crmVersion: z.number().int().min(0).default(0),
+    crm: z
+      .object({
+        companyId: z.uuid(),
+        contactId: z.uuid().nullable(),
+        projectId: z.uuid().nullable(),
+      })
+      .nullable()
+      .default(null),
     number: z.string().max(100),
     title: text,
     clientType: z.enum(["Individual", "Company"]).default("Individual"),
@@ -349,6 +358,8 @@ export function createQuotation(
   return {
     id: crypto.randomUUID(),
     number: `QT-${String(sequence).padStart(4, "0")}`,
+    crm: null,
+    crmVersion: 0,
     title: "",
     clientType: "Individual",
     projectType: "Renovation",
@@ -497,6 +508,7 @@ export function createRevision(
   return quotationSchema.parse({
     ...structuredClone(source),
     id: fresh.id,
+    crmVersion: 0,
     number: `${baseNumber}-R${sequence}`,
     issued: fresh.issued,
     validUntil: fresh.validUntil,

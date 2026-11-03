@@ -1,5 +1,6 @@
 "use client";
 
+import ClientQuotations from "./client-quotations";
 import Button from "@/components/_ui/button";
 import {
   Sheet,
@@ -44,6 +45,7 @@ export default function CompanyDetail() {
         </SheetHeader>
         {company && (
           <div className="min-h-0 flex-1 overflow-auto p-5">
+            <ClientQuotations key={company.id} companyId={company.id} />
             <section className="mb-6">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-base">Account</h2>

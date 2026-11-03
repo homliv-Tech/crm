@@ -1,3 +1,4 @@
+import { loginDestination } from "@/lib/login-destination";
 import Link from "next/link";
 import LoginForm from "@/components/auth/login-form";
 import { redirect } from "next/navigation";
@@ -6,13 +7,14 @@ import { authConfigured } from "@/lib/auth-config";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ invitation_token?: string }>;
+  searchParams: Promise<{ invitation_token?: string; next?: string }>;
 }) {
-  const { invitation_token } = await searchParams;
+  const { invitation_token, next } = await searchParams;
+  const destination = loginDestination(next);
   const invitationToken =
     typeof invitation_token === "string" ? invitation_token : undefined;
   const access = await getAccess();
-  if (access.status === 200) redirect("/");
+  if (access.status === 200) redirect(destination);
   if (access.status === 403) redirect("/access-denied");
   return (
     <main className="flex min-h-dvh items-center justify-center p-6">
@@ -23,10 +25,13 @@ export default async function LoginPage({
         </p>
         {authConfigured() ? (
           <>
-            <LoginForm invitationToken={invitationToken} />
+            <LoginForm
+              invitationToken={invitationToken}
+              destination={destination}
+            />
             <div className="border-border mt-6 border-t pt-5">
               <Link
-                href="/sign-in/passkey"
+                href={`/sign-in/passkey?next=${encodeURIComponent(destination)}`}
                 prefetch={false}
                 className="border-border block rounded-lg border px-4 py-3 text-center text-sm"
               >

@@ -11,12 +11,28 @@ bun install
 bun run dev:quotations
 ```
 
-Open http://localhost:3001. `bun run dev` starts both CRM and Quotient, on ports 3000 and 3001 respectively. No environment variables, login, or database are required for Quotient.
+Open http://localhost:3001. `bun run dev` starts both CRM and Quotient, on ports 3000 and 3001 respectively. No environment variables, login, or database are required to make quotations. **Sign in with Homliv CRM** is optional.
 
 ```bash
 bun run --filter @crm/quotations build
 bun run start:quotations
 ```
+
+## CRM connection
+
+The quotation maker is public and works without an account: enter client details manually, save browser drafts, and export PDFs. **Continue without signing in** leaves all those features available.
+
+Open **Settings → Homliv CRM** in the quotation sidebar. Select **Sign in with Homliv CRM** to open the CRM connection window. Complete CRM sign-in there; the current quotation stays in the maker, and its client/contact/project selectors and **Save to CRM** become available. The sign-in window closes automatically when the connection completes. Client lookups and saves continue in the maker, including after a refresh. **Disconnect CRM** revokes the connection and clears the client list while preserving quotation drafts. The connection expires after seven days, or earlier if your WorkOS session ends or workspace access is removed.
+
+Local development defaults to CRM on `http://localhost:3000` and the public maker on `http://localhost:3001`. For deployment, set `HOMLIV_CRM_URL` in the quotation app before building and `QUOTATIONS_ORIGIN` to the maker's exact origin in the CRM environment (see each app's `.env.example`). Only that configured origin and the actual opener window can receive the short-lived sign-in code. The maker exchanges it once using PKCE, stores an opaque connection token in its own HttpOnly cookie, and calls CRM through its backend. The database stores only token/code hashes. WorkOS cookies and credentials stay on the CRM; every data operation checks the original WorkOS session and current membership. Pop-ups are only needed during sign-in, and guest quotations remain available if they are blocked.
+
+The CRM's own `/quotations` route is also usable without sign-in; its sign-in option returns there after login. Signed-in CRM users can still use **client details → Quotations → Create quotation**. Run `bun run db:migrate` against the configured CRM database before saving quotations there.
+
+Choose a CRM client, then a contact to prefill email/phone and a project to prefill title, site address and scope. Client notes are shown for context. Billing address and tax ID remain editable because CRM does not store those fields. Client selection clears previous recipient details; project and contact prefilling happens only on selection, preserving later manual edits.
+
+**Save to CRM** stores the full quotation under that client. The client record lists its quotation numbers, statuses, totals, validity dates and recipient details; opening one returns to the generator for the full document and PDF. Changes remain local until saved again. Conflicting CRM saves are rejected; export a local backup, delete the local draft, then reopen the newer CRM copy to reconcile changes. If a newer local draft exists, reopening preserves it. Deleting a local draft leaves its CRM copy intact; deleting a CRM client deletes that client's saved quotations.
+
+Signing in from the standalone maker connects its existing browser workspace directly; drafts do not need to move. If you switch between the standalone and CRM-hosted makers, their browser storage stays separate; use **Export backup** and **Import backup** to transfer drafts. Existing backups remain compatible.
 
 ## Features
 

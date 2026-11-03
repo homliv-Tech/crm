@@ -2,6 +2,7 @@ import { PROJECT_PHASES } from "../crm/projects";
 import { sql } from "drizzle-orm";
 import {
   pgTable,
+  jsonb,
   text,
   integer,
   numeric,
@@ -126,3 +127,37 @@ export const activities = pgTable(
   },
   (t) => [index("activities_company_date_idx").on(t.companyId, t.occurredAt)],
 );
+
+// The full validated document preserves pricing, terms and client details as quoted.
+export const quotations = pgTable(
+  "quotations",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    document: jsonb("document")
+      .$type<import("@crm/quotations/quotation").Quotation>()
+      .notNull(),
+    version: integer("version").notNull().default(1),
+    ...timestamps,
+  },
+  (t) => [index("quotations_company_idx").on(t.companyId)],
+);
+
+// Secrets are stored as hashes; the short-lived code is exchanged once using PKCE.
+export const quotationConnections = pgTable("quotation_connections", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  codeHash: text("code_hash").notNull().unique(),
+  challenge: text("challenge").notNull(),
+  tokenHash: text("token_hash").unique(),
+  userId: text("user_id").notNull(),
+  sessionId: text("session_id").notNull(),
+  organizationId: text("organization_id").notNull(),
+  audience: text("audience").notNull(),
+  codeExpiresAt: timestamp("code_expires_at", { withTimezone: true }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});

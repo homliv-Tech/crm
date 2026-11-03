@@ -6,8 +6,10 @@ import { Input } from "@/components/_ui/input";
 import Button from "@/components/_ui/button";
 export default function LoginForm({
   invitationToken,
+  destination = "/",
 }: {
   invitationToken?: string;
+  destination?: string;
 }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -36,7 +38,7 @@ export default function LoginForm({
       if (action === "verify") {
         // Clear any previous user's in-memory CRM data before entering.
         useCompaniesStore.setState(useCompaniesStore.getInitialState(), true);
-        router.replace("/");
+        router.replace(destination);
         router.refresh();
       } else {
         setCode("");

@@ -21,6 +21,24 @@ Start with the responsibility you want to change. Paths below are relative to `a
 | Debounced PDF preview | `components/quotation-document.tsx` |
 | App-wide visual styles | `app/globals.css` |
 
+## CRM integration
+
+The workspace package exports `@crm/quotations/app` and `@crm/quotations/quotation`. Internal imports use relative paths so both Next apps resolve the same components and schemas without relying on the consuming app's `@/` alias. The public CRM `/quotations` page enables `CrmConnection` for authenticated members and offers optional sign-in for guests. The standalone page renders `OptionalCrm`, which uses a CRM popup only to complete sign-in, without moving browser drafts.
+
+`components/optional-crm.tsx` receives the authenticated popup’s short-lived code, exchanges it through the maker’s own `/api/crm/connect`, and closes the popup. `lib/crm-session.ts` owns the PKCE proof and opaque connection cookie; both are HttpOnly. Subsequent operations use the maker backend, so neither an open popup nor cross-site cookies are needed. Refresh restores the cookie connection. `lib/crm-bridge.ts` defines the validated operation allowlist and the strict origin/window checks used only for the sign-in handoff.
+
+The CRM `/api/quotation-connection/[action]` handlers persist code and token hashes in `quotation_connections`. Exchange atomically consumes a two-minute code only with the correct PKCE verifier and configured maker origin. Connection tokens expire in seven days. Each data operation verifies the originating WorkOS session and current organization membership before calling the existing quotation handlers or snapshot loader. A viewer demotion prevents writes while retaining reads. Disconnect deletes the grant and maker cookie; expired/revoked membership clears the cookie and client list. Transport failures preserve the connection for retry. `HOMLIV_CRM_URL` and `QUOTATIONS_ORIGIN` must identify the two apps; their production settings have no localhost fallback.
+
+`components/crm-connection.tsx` loads the authorized CRM snapshot, prefills selected records, and explicitly saves/opens documents through `/api/quotations`. `crmVersion` is a concurrency token, reset for duplicates and revisions. CRM `lib/crm/quotation-handlers.ts` validates documents and client/contact/project relationships, enforces permissions and origins, and saves using compare-and-update versions. `quotations.document` preserves the full document rather than altering project fees or delivery progress. Client details load saved quotations independently of the existing CRM snapshot.
+
+The CRM route has scoped styles, Tailwind sources for this package, and local PDF fonts in its public directory. Keep those font copies consistent with this app when updating them.
+
+## Editor UX
+
+The editor uses a framed sheet around document tabs and a client-first form. `components/quotation-summary.tsx` renders a live ledger from the same calculation functions as PDF export; readiness actions navigate to missing fields. Draft creation and lookup live in the workspace sidebar, with CRM and backup controls under settings disclosures. On phones the workspace folds into one menu and the editing footer retains the live total.
+
+`app/editor.css` owns scoped tokens and editor components. Both apps import it directly (`@crm/quotations/styles` in CRM) so styling stays consistent without duplicating a second stylesheet. PDF document styling remains in the existing PDF renderer. Hidden editor sections stay mounted; changing tabs must not reset values or disclosure state.
+
 ## Data flow
 
 `app/page.tsx` renders the client entry point, `QuotationApp`. The `useWorkspace` hook owns browser persistence and exposes the workspace and its setter. The app selects the active quotation, calculates totals, and passes data and explicit callbacks to the sidebar and editor screens. Screens own their form controls; quotation changes flow through the app's `update` function, which clears validation errors and updates the quotation timestamp.

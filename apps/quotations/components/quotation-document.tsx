@@ -21,7 +21,7 @@ export default function QuotationDocument({
     let active = true;
     const timer = setTimeout(async () => {
       try {
-        const { getQuotationPdf } = await import("@/lib/pdf");
+        const { getQuotationPdf } = await import("../lib/pdf");
         const blob = await getQuotationPdf(JSON.parse(key));
         if (!active) return;
         onReady(blob, key);
@@ -49,7 +49,7 @@ export default function QuotationDocument({
   return (
     <section
       aria-label="Quotation preview"
-      className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm"
+      className="overflow-hidden rounded-xl border border-stone-200 bg-white"
     >
       <div className="flex min-h-11 flex-wrap items-center justify-between gap-2 border-b border-stone-200 px-4 py-2 text-xs text-stone-500">
         <span role="status">

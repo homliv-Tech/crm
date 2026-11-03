@@ -1,14 +1,17 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import QuotationSummary from "./quotation-summary";
+import OptionalCrm from "./optional-crm";
+import CrmConnection from "./crm-connection";
 import Button from "./button";
 import WorkspaceSidebar from "./workspace-sidebar";
-import { saveableTemplate } from "@/lib/package-templates";
+import { saveableTemplate } from "../lib/package-templates";
 import QuotationDocument from "./quotation-document";
 import ClientProjectStep from "./editor/client-project-step";
 import WorkPricingStep from "./editor/work-pricing-step";
 import TermsBrandingStep from "./editor/terms-branding-step";
-import { useWorkspace } from "@/hooks/use-workspace";
+import { useWorkspace } from "../hooks/use-workspace";
 import {
   calculate,
   createQuotation,
@@ -18,7 +21,7 @@ import {
   workSections,
   type LineItem,
   type Quotation,
-} from "@/lib/quotation";
+} from "../lib/quotation";
 
 const editorSteps = [
   {
@@ -38,15 +41,30 @@ function issueStep(issue: string) {
 
 function Mark({ small = false }: { small?: boolean }) {
   return (
-    <span
+    <svg
       aria-hidden="true"
-      className={`inline-flex items-center justify-center rounded-xl bg-emerald-800 font-serif text-white ${small ? "size-8 text-xl" : "size-9 text-2xl"}`}
+      viewBox="0 0 28 28"
+      fill="none"
+      className={small ? "quote-mark small" : "quote-mark"}
     >
-      q.
-    </span>
+      <path d="M5 5h13l5 5v13H5V5Z" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="M17 5v6h6M9 15h10M9 19h6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+    </svg>
   );
 }
-export default function QuotationApp() {
+export default function QuotationApp({
+  crmEnabled = false,
+  crmUrl,
+  signInHref,
+}: {
+  crmEnabled?: boolean;
+  crmUrl?: string;
+  signInHref?: string;
+}) {
   const [errors, setErrors] = useState<string[]>([]);
   const {
     workspace,
@@ -153,6 +171,7 @@ export default function QuotationApp() {
       next = {
         ...current,
         id: next.id,
+        crmVersion: 0,
         number: next.number,
         issued: next.issued,
         validUntil: next.validUntil,
@@ -217,7 +236,7 @@ export default function QuotationApp() {
   function removeQuote() {
     if (
       !window.confirm(
-        `Delete ${current.number || "this quotation"}? This cannot be undone. Export a backup first if you need a copy.`,
+        `Delete ${current.number || "this quotation"} from this browser? This cannot be undone.${crmEnabled || current.crmVersion > 0 ? " A saved CRM copy will remain available in the client record." : " Export a backup first if you need a copy."}`,
       )
     )
       return;
@@ -238,7 +257,7 @@ export default function QuotationApp() {
     if (showIssues(issues)) return;
     setExporting(true);
     try {
-      const { downloadPdf } = await import("@/lib/pdf");
+      const { downloadPdf } = await import("../lib/pdf");
       const prepared = previewPdf.current;
       await downloadPdf(
         current,
@@ -259,7 +278,7 @@ export default function QuotationApp() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="quotation-workspace">
       <datalist id="work-sections">
         {workSections.map((section) => (
           <option key={section} value={section} />
@@ -271,19 +290,19 @@ export default function QuotationApp() {
       >
         Skip to quotation
       </a>
-      <header className="no-print flex min-h-20 flex-wrap items-center justify-between gap-4 border-b border-stone-200 bg-white px-5 py-4 lg:px-8">
-        <div className="flex items-center gap-3">
+      <header className="quote-topbar no-print">
+        <div className="quote-brand">
           <Mark />
-          <span className="text-xl font-semibold tracking-tight">Quotient</span>
-          <span className="ml-2 hidden border-l border-stone-200 pl-4 text-xs text-stone-500 sm:block">
-            Architecture · Renovation · Building works
-          </span>
+          <span>Quotient</span>
+          <span className="quote-byline">by Homliv</span>
         </div>
-        <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-[11px] font-medium text-stone-600">
-          Private by default · No sign-up
+        <span className="quote-workspace-name">
+          Architecture & building quotations
         </span>
+        <span className="quote-privacy">Local workspace</span>
       </header>
-      <div className="print-shell mx-auto grid max-w-[1700px] lg:grid-cols-[240px_minmax(0,1fr)]">
+      {/* 240px navigation + fluid white sheet + 8px inset. Inside the sheet: 24px + editing + 24px gap + 312px ledger + 24px. */}
+      <div className="quote-frame print-shell">
         <WorkspaceSidebar
           workspace={workspace}
           onAddQuote={() => addQuote()}
@@ -295,32 +314,96 @@ export default function QuotationApp() {
           }}
           backup={backup}
           importBackup={importBackup}
+          settings={
+            crmEnabled ? (
+              <CrmConnection
+                workspace={workspace}
+                quote={quote}
+                update={update}
+                setWorkspace={setWorkspace}
+              />
+            ) : (
+              <OptionalCrm
+                crmUrl={crmUrl}
+                signInHref={signInHref}
+                workspace={workspace}
+                quote={quote}
+                update={update}
+                setWorkspace={setWorkspace}
+              />
+            )
+          }
         />
-        <main id="editor" className="print-shell min-w-0 p-5 sm:p-8">
-          <div className="no-print mb-7 flex flex-wrap items-start justify-between gap-5">
-            <div>
-              <div className="mb-2 text-[10px] font-semibold tracking-[0.18em] text-emerald-800 uppercase">
-                {quote.number || "New quotation"} · {quote.status}
+        <main id="editor" tabIndex={-1} className="quote-sheet print-shell">
+          <div className="quote-titlebar no-print">
+            <div className="quote-document-title">
+              <div className="quote-title-line">
+                <h1>Quotation</h1>
+                <span className="quote-document-number">
+                  {quote.number || "Untitled"}
+                </span>
+                <span className="quote-status">{quote.status}</span>
               </div>
-              <h1>Quotation generator</h1>
-              <p className="mt-2 text-stone-500">
-                Build your quotation in three steps, then review the PDF before
-                sharing.
+              <p title={quote.title}>
+                {quote.title || "Your next project starts here."}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={reviseQuote}>
-                Create revision
-              </Button>
-              <Button variant="secondary" onClick={() => addQuote(true)}>
-                Duplicate
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={exporting}
-                onClick={() => void exportPdf()}
+            <div className="quote-document-actions">
+              <details
+                className="quote-actions-menu"
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.currentTarget.removeAttribute("open");
+                    event.currentTarget.querySelector("summary")?.focus();
+                  }
+                }}
               >
-                {exporting ? "Preparing PDF…" : "↓ Download PDF"}
+                <summary>
+                  More actions <span aria-hidden="true">⌄</span>
+                </summary>
+                <div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.currentTarget
+                        .closest("details")
+                        ?.removeAttribute("open");
+                      addQuote(true);
+                    }}
+                  >
+                    Duplicate quotation
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.currentTarget
+                        .closest("details")
+                        ?.removeAttribute("open");
+                      reviseQuote();
+                    }}
+                  >
+                    Create revision
+                  </button>
+                  <button
+                    type="button"
+                    className="quote-delete"
+                    onClick={(e) => {
+                      e.currentTarget
+                        .closest("details")
+                        ?.removeAttribute("open");
+                      removeQuote();
+                    }}
+                  >
+                    Delete local draft
+                  </button>
+                </div>
+              </details>
+              <Button
+                variant={view === "edit" ? "primary" : "secondary"}
+                onClick={() => setView(view === "edit" ? "preview" : "edit")}
+              >
+                {view === "edit" ? "Review quotation" : "Back to editor"}
+                <span aria-hidden="true">{view === "edit" ? "↗" : "←"}</span>
               </Button>
             </div>
           </div>
@@ -362,57 +445,39 @@ export default function QuotationApp() {
               </ul>
             </div>
           )}
-          <nav
-            aria-label="Quotation steps"
-            className="no-print mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4"
-          >
+          <nav aria-label="Quotation sections" className="quote-tabs no-print">
             {editorSteps.map((item, index) => (
-              <Button
+              <button
                 key={item.title}
-                variant="secondary"
+                type="button"
                 aria-current={
                   view === "edit" && step === index ? "step" : undefined
                 }
-                className={`justify-start text-left whitespace-normal ${view === "edit" && step === index ? "border-emerald-700 bg-emerald-50 text-emerald-900" : ""}`}
                 onClick={() => goToStep(index)}
               >
-                <span aria-hidden="true" className="font-semibold">
-                  {index + 1}.
-                </span>{" "}
                 {item.title}
-              </Button>
+              </button>
             ))}
-            <Button
-              variant="secondary"
+            <button
+              type="button"
               aria-current={view === "preview" ? "step" : undefined}
-              className={`justify-start ${view === "preview" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : ""}`}
               onClick={() => setView("preview")}
             >
-              4. Review PDF
-            </Button>
+              PDF preview
+            </button>
           </nav>
-          <div className="no-print mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2
-                ref={stepHeading}
-                tabIndex={-1}
-                className="scroll-mt-6 focus:outline-none"
-              >
-                {view === "edit"
-                  ? editorSteps[step].title
-                  : "Review your quotation"}
-              </h2>
-              <p className="mt-1 text-stone-600">
-                {view === "edit"
-                  ? editorSteps[step].hint
-                  : "Check the document before downloading or printing."}
-              </p>
-            </div>
-            <span role="status" className="text-xs text-stone-600">
+          <div className="quote-step-context no-print">
+            <h2 ref={stepHeading} tabIndex={-1}>
+              {view === "edit"
+                ? editorSteps[step].title
+                : "Review your quotation"}
+            </h2>
+            <span role="status">
+              <span aria-hidden="true" className="quote-save-dot" />
               {saveState}
             </span>
           </div>
-          <div className="print-shell grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="quote-editor-grid print-shell">
             {view === "edit" && (
               <form
                 id="quotation-form"
@@ -450,105 +515,41 @@ export default function QuotationApp() {
                     setMessage={setMessage}
                   />
                 </div>
-                <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+                <div className="quote-editor-footer">
                   <Button
-                    variant="secondary"
+                    variant="ghost"
                     disabled={step === 0}
                     onClick={() => goToStep(step - 1)}
                   >
                     ← Back
                   </Button>
-                  <span className="min-w-0 text-xs text-stone-600">
-                    <span className="block">Step {step + 1} of 3</span>
-                    <span className="block font-semibold break-all tabular-nums">
-                      {money(totals.total, quote.currency)}
-                    </span>
+                  <span className="quote-footer-total">
+                    {money(totals.total, quote.currency)}
                   </span>
-                  <Button variant="primary" type="submit">
-                    {step < 2 ? "Continue →" : "Review PDF →"}
+                  <Button variant="secondary" type="submit">
+                    {step < 2
+                      ? `Continue to ${step === 0 ? "pricing" : "terms"}`
+                      : "Review quotation"}
+                    <span aria-hidden="true">→</span>
                   </Button>
                 </div>
-                <Button variant="danger" onClick={removeQuote}>
-                  Delete quotation
-                </Button>
               </form>
             )}
             {view === "edit" && (
-              <aside className="no-print space-y-5 rounded-xl border border-stone-200 bg-white p-5 xl:sticky xl:top-6">
-                <div>
-                  <h2>Quotation summary</h2>
-                  <p className="mt-2 break-words text-stone-600">
-                    {quote.title || "Untitled project"}
-                  </p>
-                  <p className="break-words text-stone-600">
-                    {quote.to.name || "Add a client to get started"}
-                  </p>
-                </div>
-                <div className="flex flex-wrap justify-between gap-2 border-t border-stone-200 pt-4 text-sm">
-                  <span>
-                    {quote.items.length} work{" "}
-                    {quote.items.length === 1 ? "item" : "items"}
-                  </span>
-                  <span className="font-medium tabular-nums">
-                    {quote.currency}
-                  </span>
-                </div>
-                <div className="rounded-lg bg-stone-50 p-4">
-                  <p className="text-stone-600">Quotation total</p>
-                  <p className="mt-1 text-2xl font-semibold break-all tabular-nums">
-                    {money(totals.total, quote.currency)}
-                  </p>
-                  <p className="mt-2 text-xs text-stone-600">
-                    Includes discounts, item taxes and additional charges.
-                  </p>
-                </div>
-                <div>
-                  <h3>
-                    {readiness.length
-                      ? "Before you download"
-                      : "Ready to download"}
-                  </h3>
-                  {readiness.length ? (
-                    <ul className="mt-2 space-y-2">
-                      {readiness.map((issue) => (
-                        <li key={issue}>
-                          <button
-                            type="button"
-                            className="min-h-8 cursor-pointer text-left text-xs leading-5 text-stone-600 underline underline-offset-4 focus-visible:outline-2"
-                            onClick={() => fixIssue(issue)}
-                          >
-                            {issue}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-2 text-stone-600">
-                      All required details are filled in. Review the PDF when
-                      you’re ready.
-                    </p>
-                  )}
-                </div>
-                <Button
-                  variant="secondary"
-                  className="w-full"
-                  onClick={() => setView("preview")}
-                >
-                  Preview PDF →
-                </Button>
-                <p className="text-xs text-stone-600">
-                  Drafts save automatically in this browser. You can move
-                  between steps at any time.
-                </p>
-              </aside>
+              <QuotationSummary
+                quote={quote}
+                issues={readiness}
+                onFix={fixIssue}
+                onReview={() => setView("preview")}
+              />
             )}
             {view === "preview" && (
-              <div className="print-shell min-w-0">
-                <div className="no-print mb-3 flex items-center justify-between">
-                  <span className="text-xs font-medium text-stone-500">
-                    LIVE PREVIEW
+              <div className="quote-preview-shell print-shell">
+                <div className="quote-preview-caption no-print">
+                  <span className="text-xs font-medium text-stone-600">
+                    PDF document
                   </span>
-                  <span className="text-[10px] text-stone-500">
+                  <span className="text-xs text-stone-600">
                     Updates as you type
                   </span>
                 </div>
@@ -560,7 +561,7 @@ export default function QuotationApp() {
               </div>
             )}
             {view === "preview" && (
-              <aside className="no-print space-y-5 rounded-xl border border-stone-200 bg-white p-5">
+              <aside className="quote-ledger no-print space-y-5">
                 <h2>
                   {readiness.length
                     ? "A few details to complete"
@@ -586,7 +587,7 @@ export default function QuotationApp() {
                     const issues = exportErrors(quote);
                     if (showIssues(issues)) return;
                     try {
-                      const { openPdfForPrint } = await import("@/lib/pdf");
+                      const { openPdfForPrint } = await import("../lib/pdf");
                       const prepared = previewPdf.current;
                       await openPdfForPrint(
                         quote,
@@ -624,10 +625,6 @@ export default function QuotationApp() {
               </aside>
             )}
           </div>
-          <footer className="no-print mt-9 flex flex-wrap justify-between gap-3 border-t border-stone-200 pt-5 text-[11px] text-stone-500">
-            <span>Made for the work you love.</span>
-            <span>No account. No uploads. Your business stays yours.</span>
-          </footer>
         </main>
       </div>
     </div>

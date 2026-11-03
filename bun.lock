@@ -35,6 +35,7 @@
       "name": "@crm/web",
       "version": "0.1.0",
       "dependencies": {
+        "@crm/quotations": "workspace:*",
         "@neondatabase/serverless": "^1.2.0",
         "@rive-app/canvas": "^2.31.0",
         "@rive-app/react-canvas": "^4.31.0",

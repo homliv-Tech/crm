@@ -1,5 +1,5 @@
 import Button from "./button";
-import type { LineItem } from "@/lib/quotation";
+import type { LineItem } from "../lib/quotation";
 
 export default function ItemDetailEditor({
   item,

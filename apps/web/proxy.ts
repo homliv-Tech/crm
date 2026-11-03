@@ -14,6 +14,7 @@ export const config = {
   matcher: [
     "/",
     "/login",
+    "/quotations/:path*",
     "/sign-in/:path*",
     "/account/:path*",
     "/callback",

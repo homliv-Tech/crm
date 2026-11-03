@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { accents, type Quotation } from "@/lib/quotation";
+import { accents, type Quotation } from "../../lib/quotation";
 import Button from "../button";
 import { Section, QuotationTextField } from "./fields";
 import type { EditorProps } from "./types";
@@ -48,7 +48,7 @@ export default function TermsBrandingStep({
   }
   return (
     <>
-      <Section number="04" title="Scope, exclusions & payment">
+      <Section title="Scope, exclusions & payment">
         <QuotationTextField
           quote={quote}
           update={update}
@@ -81,7 +81,7 @@ export default function TermsBrandingStep({
           percentage or delivery commitment is assumed.
         </p>
       </Section>
-      <Section number="05" title="Branding & additional details">
+      <Section title="Branding & additional details">
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-3">
             <div className="text-xs font-medium text-stone-600">
@@ -105,7 +105,7 @@ export default function TermsBrandingStep({
                 e.target.value = "";
               }}
             />
-            <span className="block text-[11px] text-stone-500">
+            <span className="block text-xs text-stone-500">
               PNG or JPEG, up to 500 KB.
             </span>
             {quote.logo && (

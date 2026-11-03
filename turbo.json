@@ -41,6 +41,8 @@
   "globalEnv": [
     "DATABASE_URL",
     "WORKOS_*",
-    "NEXT_PUBLIC_*"
+    "NEXT_PUBLIC_*",
+    "HOMLIV_CRM_URL",
+    "QUOTATIONS_ORIGIN"
   ]
 }
