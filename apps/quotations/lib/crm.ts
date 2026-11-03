@@ -63,9 +63,37 @@ export function clientPatch(
   };
 }
 
+export class CrmRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "CrmRequestError";
+  }
+}
+
 export async function crmRequest(path: string, init?: RequestInit) {
   const response = await fetch(path, { cache: "no-store", ...init });
   const body = await response.json();
-  if (!response.ok) throw new Error(body.error || "Could not connect to CRM.");
+  if (!response.ok)
+    throw new CrmRequestError(
+      body.error || "Could not connect to CRM.",
+      response.status,
+    );
   return body;
+}
+
+export async function deleteCrmQuotation(
+  request: typeof crmRequest,
+  id: string,
+) {
+  try {
+    await request(`/api/quotations?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+  } catch (error) {
+    if (!(error instanceof CrmRequestError && error.status === 404))
+      throw error;
+  }
 }

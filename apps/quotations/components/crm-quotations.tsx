@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   crmRequest,
+  deleteCrmQuotation,
   openCrmQuotation,
   type CrmQuotationSummary,
 } from "../lib/crm";
@@ -113,9 +114,7 @@ export default function CrmQuotations({
     setOpening(true);
     setMessage("");
     try {
-      await request(`/api/quotations?id=${encodeURIComponent(row.id)}`, {
-        method: "DELETE",
-      });
+      await deleteCrmQuotation(request, row.id);
       if (!mounted.current) return;
       setRows((previous) => previous.filter((q) => q.id !== row.id));
       setWorkspace(

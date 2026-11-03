@@ -53,7 +53,7 @@ export default function ClientQuotations({ companyId }: { companyId: string }) {
         { method: "DELETE" },
       );
       const result = await response.json();
-      if (!response.ok)
+      if (!response.ok && response.status !== 404)
         throw new Error(result.error || "Could not delete quotation.");
       setQuotes((previous) => previous.filter((q) => q.id !== id));
       setStatus("Quotation deleted from CRM.");
