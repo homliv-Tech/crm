@@ -2,7 +2,7 @@
 
 import Button from "@/components/_ui/button";
 import { useCompaniesStore } from "@/stores/companies-store";
-import { money } from "@/lib/crm/format";
+import { localDateKey, money } from "@/lib/crm/format";
 import { isActiveProject, PROJECT_PHASES } from "@/lib/crm/projects";
 import { useCrmEditor } from "./crm-editor";
 
@@ -11,7 +11,7 @@ export function Forecast() {
   const edit = useCrmEditor();
   const open = state.deals.filter((d) => isActiveProject(d.stage));
   const fees = open.reduce((v, d) => v + Number(d.value), 0);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
   const tasks = state.tasks.filter((t) => !t.completed);
   const deadlines = open
     .filter((d) => d.closeDate)

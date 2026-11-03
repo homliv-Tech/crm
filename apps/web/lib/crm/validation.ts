@@ -40,6 +40,13 @@ export const companyInput = z
     message: "Add at least one active project when setting a fee total.",
     path: ["openDeals"],
   });
+export const companyCreateInput = companyInput.refine(
+  (value) => value.openDeals > 0 || value.winProbability === 0,
+  {
+    message: "Add at least one active project when setting initial progress.",
+    path: ["openDeals"],
+  },
+);
 export const contactInput = z.object({
   companyId: z.uuid(),
   name,
