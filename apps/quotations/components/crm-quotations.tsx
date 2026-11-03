@@ -18,6 +18,7 @@ import { resetQuotationCrmVersion } from "../lib/workspace";
 import Button from "./button";
 import { Field } from "./editor/fields";
 import QuotationContextMenu from "./quotation-context-menu";
+import type { CrmMutationRunner } from "../lib/crm-mutations";
 
 export default function CrmQuotations({
   request,
@@ -25,12 +26,14 @@ export default function CrmQuotations({
   setWorkspace,
   canDelete = true,
   companyId,
+  runMutation,
 }: {
   request: typeof crmRequest;
   workspace: Workspace;
   setWorkspace: Dispatch<SetStateAction<Workspace | null>>;
   canDelete?: boolean;
   companyId?: string;
+  runMutation: CrmMutationRunner;
 }) {
   const [status, setStatus] = useState("active");
   const [attempt, setAttempt] = useState(0);
@@ -106,32 +109,36 @@ export default function CrmQuotations({
   }
 
   async function remove(row: CrmQuotationSummary) {
-    if (
-      !window.confirm(
-        `Delete ${row.number || "this quotation"} from CRM? This cannot be undone. Any local draft in this browser will remain.`,
+    await runMutation(async () => {
+      if (
+        !window.confirm(
+          `Delete ${row.number || "this quotation"} from CRM? This cannot be undone. Any local draft in this browser will remain.`,
+        )
       )
-    )
-      return;
-    setOpening(true);
-    setMessage("");
-    try {
-      await deleteCrmQuotation(request, row.id);
-      if (!mounted.current) return;
-      setRows((previous) => previous.filter((q) => q.id !== row.id));
-      setWorkspace(
-        (previous) => previous && resetQuotationCrmVersion(previous, row.id),
-      );
-      setMessage("Deleted from CRM. Any local draft remains in this browser.");
-    } catch (error) {
-      if (mounted.current)
-        setMessage(
-          error instanceof Error
-            ? error.message
-            : "Could not delete quotation.",
+        return;
+      setOpening(true);
+      setMessage("");
+      try {
+        await deleteCrmQuotation(request, row.id);
+        if (!mounted.current) return;
+        setRows((previous) => previous.filter((q) => q.id !== row.id));
+        setWorkspace(
+          (previous) => previous && resetQuotationCrmVersion(previous, row.id),
         );
-    } finally {
-      if (mounted.current) setOpening(false);
-    }
+        setMessage(
+          "Deleted from CRM. Any local draft remains in this browser.",
+        );
+      } catch (error) {
+        if (mounted.current)
+          setMessage(
+            error instanceof Error
+              ? error.message
+              : "Could not delete quotation.",
+          );
+      } finally {
+        if (mounted.current) setOpening(false);
+      }
+    });
   }
 
   return (
