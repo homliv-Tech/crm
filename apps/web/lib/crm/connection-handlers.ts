@@ -153,7 +153,9 @@ export function createConnectionHandler(deps: Dependencies) {
       });
       return command.action === "save"
         ? handlers.POST(forwarded)
-        : handlers.GET(forwarded);
+        : command.action === "delete"
+          ? handlers.DELETE(forwarded)
+          : handlers.GET(forwarded);
     } catch (error) {
       if (error instanceof z.ZodError || error instanceof SyntaxError)
         return json({ error: "Invalid connection request." }, 400);

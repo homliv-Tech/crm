@@ -84,6 +84,89 @@ test("quotation API enforces access, origin, client ownership and optimistic sav
       new Request(`https://crm.example/api/quotations?companyId=${other.id}`),
     );
     assert.equal((await otherList.json()).quotations.length, 0);
+
+    for (const status of ["Draft", "Accepted", "Declined"] as const) {
+      const quote = createQuotation();
+      quote.status = status;
+      quote.to.name = "Other client";
+      quote.crm = { companyId: other.id, contactId: null, projectId: null };
+      await db.insert(tables.quotations).values({
+        id: quote.id,
+        companyId: other.id,
+        document: quote,
+      });
+    }
+    const listStatus = (status: string, clientId = company.id) =>
+      handlers.GET(
+        new Request(
+          `https://crm.example/api/quotations?status=${status}&companyId=${clientId}`,
+        ),
+      );
+    const active = await listStatus("active");
+    assert.equal(active.headers.get("cache-control"), "private, no-store");
+    const summaries = (await active.json()).quotations;
+    assert.deepEqual(
+      summaries.map((q: { status: string }) => q.status).sort(),
+      ["Sent"],
+    );
+    assert.equal(
+      (await (await listStatus("active", other.id)).json()).quotations[0]
+        .client,
+      "Other client",
+    );
+    assert.equal("document" in summaries[0], false);
+    for (const status of ["Accepted", "Declined"]) {
+      assert.deepEqual(
+        (await (await listStatus(status)).json()).quotations,
+        [],
+      );
+      const rows = (await (await listStatus(status, other.id)).json())
+        .quotations;
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].status, status);
+    }
+    assert.equal((await listStatus("invalid")).status, 400);
+    assert.equal((await listStatus("active", "invalid")).status, 400);
+    assert.equal(
+      (
+        await handlers.GET(
+          new Request("https://crm.example/api/quotations?status=active"),
+        )
+      ).status,
+      400,
+    );
+    assert.deepEqual(
+      (await (await listStatus("active", crypto.randomUUID())).json())
+        .quotations,
+      [],
+    );
+    allow = false;
+    assert.equal((await listStatus("active")).status, 403);
+    const remove = (id: string, origin = "https://crm.example") =>
+      handlers.DELETE(
+        new Request(`https://crm.example/api/quotations?id=${id}`, {
+          method: "DELETE",
+          headers: { origin },
+        }),
+      );
+    assert.equal((await remove(document.id)).status, 403);
+    allow = true;
+    assert.equal(
+      (await remove(document.id, "https://other.example")).status,
+      403,
+    );
+    assert.equal((await remove("invalid")).status, 400);
+    assert.equal((await remove(crypto.randomUUID())).status, 404);
+    assert.equal((await remove(document.id)).status, 200);
+    assert.equal((await remove(document.id)).status, 404);
+    assert.equal(
+      (await (await listStatus("active")).json()).quotations.length,
+      0,
+    );
+    const surviving = await handlers.GET(
+      new Request(`https://crm.example/api/quotations?companyId=${other.id}`),
+    );
+    assert.equal((await surviving.json()).quotations.length, 3);
   } finally {
     await client.close();
   }

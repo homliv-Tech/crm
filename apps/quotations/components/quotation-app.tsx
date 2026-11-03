@@ -251,22 +251,25 @@ export default function QuotationApp({
       );
     }
   }
-  function removeQuote() {
+  function removeQuote(id = current.id) {
+    const target = currentWorkspace.quotes.find((q) => q.id === id);
+    if (!target) return;
     if (
       !window.confirm(
-        `Delete ${current.number || "this quotation"} from this browser? This cannot be undone.${crmEnabled || current.crmVersion > 0 ? " A saved CRM copy will remain available in the client record." : " Export a backup first if you need a copy."}`,
+        `Delete ${target.number || "this quotation"} from this browser? This cannot be undone.${crmEnabled || target.crmVersion > 0 ? " A saved CRM copy will remain available in the client record." : " Export a backup first if you need a copy."}`,
       )
     )
       return;
-    const remaining = currentWorkspace.quotes.filter(
-      (q) => q.id !== current.id,
-    );
+    const remaining = currentWorkspace.quotes.filter((q) => q.id !== id);
     if (!remaining.length)
       remaining.push(createQuotation(currentWorkspace.quotes));
     setWorkspace({
       ...currentWorkspace,
       quotes: remaining,
-      activeId: remaining[0].id,
+      activeId:
+        currentWorkspace.activeId === id
+          ? remaining[0].id
+          : currentWorkspace.activeId,
     });
     setErrors([]);
     toast.success(
@@ -325,6 +328,7 @@ export default function QuotationApp({
         <WorkspaceSidebar
           workspace={workspace}
           onAddQuote={() => addQuote()}
+          onDeleteQuote={removeQuote}
           onSelectQuote={(id) => {
             setWorkspace({ ...workspace, activeId: id });
             setErrors([]);

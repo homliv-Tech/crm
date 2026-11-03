@@ -8,6 +8,8 @@ import { eq } from "drizzle-orm";
 import { createConnectionHandler } from "../lib/crm/connection-handlers";
 import { createCrmSessionHandler } from "../../quotations/lib/crm-session";
 import { quotationConnections } from "../lib/db/schema";
+import { companies, quotations } from "../lib/db/schema";
+import { createQuotation } from "@crm/quotations/quotation";
 import type { getDb } from "../lib/db";
 
 const crm = "https://crm.example";
@@ -129,6 +131,75 @@ test("connection sessions survive popup closure and server restarts, keep secret
       "operation",
     );
     assert.equal((await snapshot2.json()).role, "viewer");
+    const [company] = await db
+      .insert(companies)
+      .values({ name: "Quote client", owner: "Architect" })
+      .returning();
+    const document = createQuotation();
+    document.crm = { companyId: company.id, contactId: null, projectId: null };
+    await db
+      .insert(quotations)
+      .values({ id: document.id, companyId: company.id, document });
+    // Read-only members can list and open documents through the persistent connection.
+    for (const command of [
+      { action: "quotations", status: "active", companyId: company.id },
+      { action: "quotation", quotationId: document.id },
+    ]) {
+      const response = await proxy()(
+        request(
+          maker,
+          "crm/operation",
+          {
+            type: "homliv-crm:request",
+            id: crypto.randomUUID(),
+            ...command,
+          },
+          headers,
+        ),
+        "operation",
+      );
+      assert.equal(response.status, 200);
+      const rows = (await response.json()).quotations;
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].id, document.id);
+    }
+    const unrelated = await proxy()(
+      request(
+        maker,
+        "crm/operation",
+        {
+          type: "homliv-crm:request",
+          id: crypto.randomUUID(),
+          action: "quotations",
+          status: "active",
+          companyId: crypto.randomUUID(),
+        },
+        headers,
+      ),
+      "operation",
+    );
+    assert.equal(unrelated.status, 200);
+    assert.deepEqual((await unrelated.json()).quotations, []);
+    const removeQuotation = () =>
+      proxy()(
+        request(
+          maker,
+          "crm/operation",
+          {
+            type: "homliv-crm:request",
+            id: crypto.randomUUID(),
+            action: "delete",
+            quotationId: document.id,
+          },
+          headers,
+        ),
+        "operation",
+      );
+    assert.equal((await removeQuotation()).status, 403);
+    role = "member";
+    assert.equal((await removeQuotation()).status, 200);
+    assert.equal((await removeQuotation()).status, 404);
+    role = "viewer";
     const deniedWrite = await proxy()(
       request(
         maker,

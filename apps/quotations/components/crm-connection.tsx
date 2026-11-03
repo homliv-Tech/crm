@@ -18,6 +18,7 @@ import {
 } from "../lib/quotation";
 import { Field } from "./editor/fields";
 import Button from "./button";
+import CrmQuotations from "./crm-quotations";
 
 type Props = {
   request?: typeof crmRequest;
@@ -161,6 +162,16 @@ export default function CrmConnection({
   }
   return (
     <section className="space-y-4" aria-label="CRM connection">
+      {data && (
+        <CrmQuotations
+          key={link?.companyId ?? "unlinked"}
+          companyId={link?.companyId}
+          canDelete={data.role !== "viewer"}
+          request={request}
+          workspace={workspace}
+          setWorkspace={setWorkspace}
+        />
+      )}
       {!external && (
         <Link
           href="/"

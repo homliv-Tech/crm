@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { calculate, money, type Quotation } from "@crm/quotations/quotation";
+import QuotationContextMenu from "@crm/quotations/context-menu";
 
 type SavedQuotation = { id: string; document: Quotation; updatedAt: string };
 export default function ClientQuotations({ companyId }: { companyId: string }) {
@@ -38,6 +39,30 @@ export default function ClientQuotations({ companyId }: { companyId: string }) {
     void load();
     return () => controller.abort();
   }, [companyId, attempt]);
+
+  async function remove(id: string, number: string) {
+    if (
+      !window.confirm(
+        `Delete ${number || "this quotation"} from CRM? This cannot be undone. Any browser drafts will remain.`,
+      )
+    )
+      return;
+    try {
+      const response = await fetch(
+        `/api/quotations?id=${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+      );
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(result.error || "Could not delete quotation.");
+      setQuotes((previous) => previous.filter((q) => q.id !== id));
+      setStatus("Quotation deleted from CRM.");
+    } catch (error) {
+      setStatus(
+        error instanceof Error ? error.message : "Could not delete quotation.",
+      );
+    }
+  }
   return (
     <section className="mb-6">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -55,30 +80,40 @@ export default function ClientQuotations({ companyId }: { companyId: string }) {
         </p>
       )}
       {quotes.map(({ id, document: q, updatedAt }) => (
-        <Link
+        <QuotationContextMenu
           key={id}
-          className="border-border hover:bg-muted mb-2 block rounded-lg border p-3"
-          href={`/quotations?quotationId=${encodeURIComponent(id)}`}
+          actions={[
+            {
+              label: "Delete from CRM",
+              onSelect: () => void remove(id, q.number),
+            },
+          ]}
         >
-          <p className="text-sm">
-            {q.number} · {q.title || "Untitled project"}
-          </p>
-          <p className="text-subtle mt-1 text-xs">
-            {q.status} · {money(calculate(q).total, q.currency)} · Valid until{" "}
-            {q.validUntil}
-          </p>
-          <p className="text-subtle mt-1 text-xs">
-            {q.to.name}
-            {q.to.email ? ` · ${q.to.email}` : ""}
-            {q.to.phone ? ` · ${q.to.phone}` : ""}
-          </p>
-          {q.siteAddress && (
-            <p className="text-subtle mt-1 text-xs">{q.siteAddress}</p>
-          )}
-          <p className="text-subtle mt-1 text-xs">
-            Updated {new Date(updatedAt).toLocaleString()}
-          </p>
-        </Link>
+          <Link
+            key={id}
+            className="border-border hover:bg-muted mb-2 block rounded-lg border p-3"
+            href={`/quotations?quotationId=${encodeURIComponent(id)}`}
+          >
+            <p className="text-sm">
+              {q.number} · {q.title || "Untitled project"}
+            </p>
+            <p className="text-subtle mt-1 text-xs">
+              {q.status} · {money(calculate(q).total, q.currency)} · Valid until{" "}
+              {q.validUntil}
+            </p>
+            <p className="text-subtle mt-1 text-xs">
+              {q.to.name}
+              {q.to.email ? ` · ${q.to.email}` : ""}
+              {q.to.phone ? ` · ${q.to.phone}` : ""}
+            </p>
+            {q.siteAddress && (
+              <p className="text-subtle mt-1 text-xs">{q.siteAddress}</p>
+            )}
+            <p className="text-subtle mt-1 text-xs">
+              Updated {new Date(updatedAt).toLocaleString()}
+            </p>
+          </Link>
+        </QuotationContextMenu>
       ))}
       <button
         type="button"

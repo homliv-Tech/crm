@@ -1,12 +1,14 @@
 import { useRef, useState, type ReactNode } from "react";
 import type { Workspace } from "../lib/quotation";
 import Button from "./button";
+import QuotationContextMenu from "./quotation-context-menu";
 
 type Props = {
   settings: ReactNode;
   workspace: Workspace;
   onAddQuote: () => void;
   onSelectQuote: (id: string) => void;
+  onDeleteQuote: (id: string) => void;
   backup: () => void;
   importBackup: (file?: File) => Promise<void>;
 };
@@ -15,6 +17,7 @@ export default function WorkspaceSidebar({
   workspace,
   onAddQuote,
   onSelectQuote,
+  onDeleteQuote,
   backup,
   importBackup,
 }: Props) {
@@ -35,7 +38,18 @@ export default function WorkspaceSidebar({
         aria-controls="saved-workspace"
         onClick={() => setWorkspaceOpen(!workspaceOpen)}
       >
-        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="16" height="16"><path d="M4 6h16M4 12h16M4 18h16" /></svg> Workspace & settings{" "}
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          width="16"
+          height="16"
+        >
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>{" "}
+        Workspace & settings{" "}
         <span aria-hidden="true">{workspaceOpen ? "−" : "+"}</span>
       </button>
       <div
@@ -64,26 +78,38 @@ export default function WorkspaceSidebar({
         <nav aria-label="Saved quotations" className="quote-draft-list">
           {visibleQuotes.length ? (
             visibleQuotes.map((q) => (
-              <button
-                type="button"
+              <QuotationContextMenu
                 key={q.id}
-                aria-current={q.id === workspace.activeId ? "page" : undefined}
-                onClick={() => {
-                  onSelectQuote(q.id);
-                  setWorkspaceOpen(false);
-                }}
+                actions={[
+                  {
+                    label: "Delete local draft",
+                    onSelect: () => onDeleteQuote(q.id),
+                  },
+                ]}
               >
-                <span className="quote-draft-heading">
-                  <span>{q.number || "Unnumbered"}</span>
-                  <span>{q.status}</span>
-                </span>
-                <span className="quote-draft-client">
-                  {q.to.name || "No client yet"}
-                </span>
-                {q.title && (
-                  <span className="quote-draft-project">{q.title}</span>
-                )}
-              </button>
+                <button
+                  type="button"
+                  key={q.id}
+                  aria-current={
+                    q.id === workspace.activeId ? "page" : undefined
+                  }
+                  onClick={() => {
+                    onSelectQuote(q.id);
+                    setWorkspaceOpen(false);
+                  }}
+                >
+                  <span className="quote-draft-heading">
+                    <span>{q.number || "Unnumbered"}</span>
+                    <span>{q.status}</span>
+                  </span>
+                  <span className="quote-draft-client">
+                    {q.to.name || "No client yet"}
+                  </span>
+                  {q.title && (
+                    <span className="quote-draft-project">{q.title}</span>
+                  )}
+                </button>
+              </QuotationContextMenu>
             ))
           ) : (
             <div className="quote-search-empty">

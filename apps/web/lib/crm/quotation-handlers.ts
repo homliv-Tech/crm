@@ -35,6 +35,34 @@ export function createQuotationHandlers({
       const params = new URL(request.url).searchParams;
       const id = params.get("id");
       const companyId = params.get("companyId");
+      const status = params.get("status");
+      if (!id && status !== null) {
+        const clientId = z.uuid().parse(companyId);
+        const filter = z.enum(["active", "Accepted", "Declined"]).parse(status);
+        // List summaries only: full documents can contain large embedded logos.
+        const rows = await getDb()
+          .select({
+            id: quotations.id,
+            number: sql<string>`${quotations.document}->>'number'`,
+            title: sql<string>`${quotations.document}->>'title'`,
+            client: sql<string>`${quotations.document}->'to'->>'name'`,
+            status: sql<string>`${quotations.document}->>'status'`,
+          })
+          .from(quotations)
+          .where(
+            and(
+              eq(quotations.companyId, clientId),
+              filter === "active"
+                ? sql`${quotations.document}->>'status' in ('Draft', 'Sent')`
+                : sql`${quotations.document}->>'status' = ${filter}`,
+            ),
+          )
+          .orderBy(desc(quotations.updatedAt), desc(quotations.id));
+        return Response.json(
+          { quotations: rows },
+          { headers: { "Cache-Control": "private, no-store" } },
+        );
+      }
       if (!id && !companyId)
         return Response.json(
           { error: "Choose a client or quotation." },
@@ -171,5 +199,33 @@ export function createQuotationHandlers({
     }
   }
 
-  return { GET, POST };
+  async function DELETE(request: Request) {
+    const access = await authorize("crm:write");
+    if (access instanceof Response) return access;
+    if (!sameOrigin(request))
+      return Response.json(
+        { error: "Invalid request origin." },
+        { status: 403 },
+      );
+    try {
+      const id = z.uuid().parse(new URL(request.url).searchParams.get("id"));
+      const removed = await getDb()
+        .delete(quotations)
+        .where(eq(quotations.id, id))
+        .returning({ id: quotations.id });
+      if (!removed.length)
+        return Response.json(
+          { error: "Quotation no longer exists." },
+          { status: 404 },
+        );
+      return Response.json(
+        { deleted: true },
+        { headers: { "Cache-Control": "private, no-store" } },
+      );
+    } catch (error) {
+      return failure(error);
+    }
+  }
+
+  return { GET, POST, DELETE };
 }
