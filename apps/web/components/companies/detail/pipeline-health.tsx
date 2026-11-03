@@ -21,7 +21,7 @@ export default function PipelineHealth({ company }: PipelineHealthProps) {
           {company.winProbability}%
         </span>
         <span className="caption-style block text-soft">
-          Win probability across all open deals
+          Project progress across all active projects
         </span>
       </div>
       <div className="flex flex-col gap-3">

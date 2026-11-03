@@ -51,9 +51,9 @@ export default function Profile() {
     : 0;
 
   const stats = [
-    { label: "Accounts", value: String(accounts.length) },
-    { label: "Open deals", value: String(openDeals) },
-    { label: "Pipeline", value: `$${formatMoney(pipeline)}` },
+    { label: "Clients", value: String(accounts.length) },
+    { label: "Active projects", value: String(openDeals) },
+    { label: "Project fees", value: `₹${formatMoney(pipeline)}` },
     { label: "Avg. win", value: `${avgWin}%` },
   ];
 
@@ -74,7 +74,7 @@ export default function Profile() {
             <SheetTitle>{isCurrentUser ? "My Profile" : "Owner Profile"}</SheetTitle>
           </div>
           <SheetDescription className="sr-only">
-            Contact details, pipeline summary and assigned accounts
+            Contact details, project summary and assigned clients
           </SheetDescription>
           <SheetClose asChild>
             <Button
@@ -123,7 +123,7 @@ export default function Profile() {
               </div>
             </DetailSection>
 
-            <DetailSection title={isCurrentUser ? "Team pipeline" : "Pipeline"}>
+            <DetailSection title={isCurrentUser ? "Team workload" : "Project fees"}>
               <div className="grid grid-cols-2 gap-2">
                 {stats.map((stat) => (
                   <div
@@ -142,7 +142,7 @@ export default function Profile() {
             </DetailSection>
 
             <DetailSection
-              title={isCurrentUser ? "Team accounts" : "Accounts"}
+              title={isCurrentUser ? "Team clients" : "Clients"}
               className="shadow-none"
             >
               {accounts.length > 0 ? (
@@ -157,7 +157,7 @@ export default function Profile() {
                 </ul>
               ) : (
                 <span className="caption-style text-subtle block">
-                  No accounts assigned yet.
+                  No clients assigned yet.
                 </span>
               )}
             </DetailSection>
@@ -176,7 +176,7 @@ export default function Profile() {
             onClick={showAccounts}
             disabled={accounts.length === 0}
           >
-            {isCurrentUser ? "Show all accounts" : "Filter table by owner"}
+            {isCurrentUser ? "Show all clients" : "Filter table by owner"}
           </Button>
         </SheetFooter>
       </SheetContent>

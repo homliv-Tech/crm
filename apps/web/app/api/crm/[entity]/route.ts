@@ -51,7 +51,7 @@ async function mutate(request: Request, context: Context) {
         return updated.length
           ? Response.json({ ok: true })
           : Response.json(
-              { error: "Company no longer exists." },
+              { error: "Client no longer exists." },
               { status: 404 },
             );
       }
@@ -63,7 +63,7 @@ async function mutate(request: Request, context: Context) {
       const initialDeals = splitOpportunityValues(pipelineValue, openDeals).map(
         (value, i) => ({
           companyId: id,
-          title: `${values.name} — Opportunity ${i + 1}`,
+          title: `${values.name} — Project ${i + 1}`,
           owner: values.owner,
           probability: winProbability,
           value,
@@ -76,7 +76,7 @@ async function mutate(request: Request, context: Context) {
           db.insert(tables.activities).values({
             companyId: id,
             type: lastInteraction.label,
-            body: `Initial ${lastInteraction.label.toLowerCase()} logged when the account was created.`,
+            body: `Initial ${lastInteraction.label.toLowerCase()} logged when the client was created.`,
             occurredAt: new Date(`${lastInteraction.date}T00:00:00Z`),
           }),
         );
@@ -171,7 +171,7 @@ async function mutate(request: Request, context: Context) {
     if (cause?.code === "23503")
       return Response.json(
         {
-          error: "The linked company no longer exists. Refresh and try again.",
+          error: "The linked client no longer exists. Refresh and try again.",
         },
         { status: 409 },
       );

@@ -11,18 +11,26 @@ bun run dev:quotations
 
 Open http://localhost:3001. `bun run dev` runs both apps; `bun run start:quotations` starts the production quotation app after building. Drafts stay in the browser, and sending/acceptance statuses are managed manually.
 
-# Sales CRM
+# Studio CRM
 
-A Next.js 16 CRM backed by **Neon Postgres** and **Drizzle ORM**. The existing company interface now reads and writes persistent records.
+A client and project workspace for architecture firms, built with Next.js 16, Neon Postgres, and Drizzle ORM.
 
-- Companies: create, edit, delete, search, filter, sort, and CSV export.
-- Contacts: customer names, email, phone, and job title linked to a company.
-- Deals: six pipeline stages, values in USD, win probabilities, owners, and close dates.
-- Tasks: account follow-ups, owners, due dates, overdue indicators, and completion.
-- Activities: notes, calls, emails, and meetings in each account's history.
-- Forecast: open pipeline, weighted forecast, won revenue, and pipeline by stage.
+- Clients: individual homeowners or organizations, client types, relationship status, lead architects, search, filters, and CSV export.
+- Contacts: client representatives, homeowners, consultants, and other project contacts, with email, phone, and role.
+- Projects: Briefing, Concept design, Detailed design, Approvals, Construction, Handover, On hold, and Cancelled phases. Each project has a site address, brief, architectural fee in INR, progress, lead architect, and target handover date.
+- Tasks: client-linked drawing reviews, site visits, decisions, due dates, overdue indicators, and completion.
+- Correspondence: notes, calls, emails, and meetings in each client's history.
+- Studio overview: client and active project counts, active project fees, phase counts, target handovers, and outstanding tasks. Active totals include on-hold projects; handover and cancelled projects are excluded. Client progress is weighted by active project fees, with a simple average when all fees are zero.
 - Custom email-code sign-in powered by WorkOS, with individual accounts, organization membership, and server-enforced roles.
 - Admin console: invite teammates, change roles, suspend/restore access, and revoke pending invitations.
+
+## Upgrade from the sales CRM
+
+Run `bun run db:migrate` before starting this version. Migration `0001_architecture_projects` preserves client and project IDs, relationships, contacts, tasks, activity, owners, and monetary values. The internal `companies` and `deals` table names and API routes remain stable.
+
+Existing sales stages move to Briefing, except Lost records, which move to Cancelled. Won sales require project delivery work and therefore also start in Briefing. Old stages, win probabilities, and expected close dates are recorded in each project's brief. Project progress resets to zero and target handover dates are cleared; review these and the imported monetary values before treating them as architectural fees. Existing sales categories are saved in the client description and removed from selectable tags so the firm can assign the correct client type and relationship status.
+
+New projects have site address and brief fields. New clients start with no projects; create named projects from the client details or Projects view. The client creation form also supports optional initial project records.
 
 ## Run locally
 

@@ -73,7 +73,7 @@ async function main() {
     const account = {
       name: `Integration test ${crypto.randomUUID()}`,
       owner: "Integration runner",
-      tags: ["SMB", "Pilot"],
+      tags: ["Residential", "Consultation"],
       openDeals: 3,
       pipelineValue: 0.29,
       lastInteraction: {
@@ -119,7 +119,7 @@ async function main() {
       title: "Test opportunity",
       value: "2500.25",
       probability: 75,
-      stage: "Proposal",
+      stage: "Detailed design",
       owner: "Integration runner",
       closeDate: "2026-12-15",
     };
@@ -127,7 +127,7 @@ async function main() {
     await json("/api/crm/deals", "PATCH", {
       ...deal,
       id: dealId,
-      stage: "Won",
+      stage: "Handover",
     });
     const task = {
       companyId,
@@ -169,7 +169,7 @@ async function main() {
     );
     assert.equal(
       saved.deals.find((d: { id: string }) => d.id === dealId).stage,
-      "Won",
+      "Handover",
     );
     assert.equal(
       saved.activities.find((a: { id: string }) => a.id === activityId).body,

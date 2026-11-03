@@ -15,11 +15,11 @@ export const COMMAND_TABLE_GRID =
   "grid grid-cols-[minmax(0,1fr)_96px] gap-x-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_minmax(0,1fr)_96px] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.5fr)_minmax(0,1.1fr)_96px_120px_minmax(0,1fr)]";
 
 const HEADERS = [
-  { label: "Company", className: "" },
-  { label: "Segment & Stage", className: "hidden md:block" },
-  { label: "Account owner", className: "hidden md:block" },
-  { label: "Pipeline", className: "text-right" },
-  { label: "Win probability", className: "hidden text-right lg:block" },
+  { label: "Client", className: "" },
+  { label: "Client type & status", className: "hidden md:block" },
+  { label: "Lead architect", className: "hidden md:block" },
+  { label: "Project fees", className: "text-right" },
+  { label: "Project progress", className: "hidden text-right lg:block" },
   { label: "Last interaction", className: "hidden lg:block" },
 ];
 
@@ -104,7 +104,7 @@ export function CommandCompanyRow({
       </span>
 
       <span className="flex items-center justify-end gap-1 tabular-nums">
-        <span className="text-muted-foreground">$</span>
+        <span className="text-muted-foreground">₹</span>
         {formatMoney(company.pipelineValue)}
       </span>
 

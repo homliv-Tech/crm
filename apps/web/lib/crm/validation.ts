@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PROJECT_PHASES } from "./projects";
 import { SEGMENTS, STAGES } from "@/data/companies";
 
 const name = z.string().trim().min(1, "A name is required.").max(200);
@@ -30,13 +31,13 @@ export const companyInput = z
     // Optional initial opportunities are created atomically with the company.
     openDeals: z.number().int().min(0).max(100).default(0),
     pipelineValue: z.number().min(0).max(999999999999).default(0),
-    winProbability: z.number().int().min(0).max(100).default(50),
+    winProbability: z.number().int().min(0).max(100).default(0),
     lastInteraction: z
       .object({ date, label: z.enum(["Note", "Call", "Email", "Meeting"]) })
       .optional(),
   })
   .refine((value) => value.openDeals > 0 || value.pipelineValue === 0, {
-    message: "Add at least one open deal when setting a pipeline value.",
+    message: "Add at least one active project when setting a fee total.",
     path: ["openDeals"],
   });
 export const contactInput = z.object({
@@ -55,14 +56,9 @@ export const dealInput = z.object({
     .max(999999999999)
     .transform((v) => v.toFixed(2)),
   probability: z.coerce.number().int().min(0).max(100),
-  stage: z.enum([
-    "Discovery",
-    "Qualified",
-    "Proposal",
-    "Negotiation",
-    "Won",
-    "Lost",
-  ]),
+  stage: z.enum(PROJECT_PHASES),
+  siteAddress: z.string().trim().max(1000).default(""),
+  brief: z.string().trim().max(10000).default(""),
   owner,
   closeDate: optionalDate,
 });

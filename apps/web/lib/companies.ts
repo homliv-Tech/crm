@@ -64,12 +64,12 @@ export function filterCompanies(
 export function companiesCsvRows(companies: Company[]) {
   return [
     [
-      "Company",
-      "Segment & Stage",
-      "Account Owner",
-      "Open Deals",
-      "Pipeline Value",
-      "Win Probability (%)",
+      "Client",
+      "Client type & status",
+      "Lead architect",
+      "Active projects",
+      "Active project fees (INR)",
+      "Project progress (%)",
       "Last Interaction Date",
       "Last Interaction",
     ],
@@ -141,7 +141,7 @@ export function formatDate(iso: string) {
 }
 
 export function formatMoney(value: number) {
-  return value.toLocaleString("en-US");
+  return value.toLocaleString("en-IN", { maximumFractionDigits: 2 });
 }
 
 export function daysSince(iso: string) {

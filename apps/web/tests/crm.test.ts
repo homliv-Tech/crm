@@ -23,7 +23,11 @@ test("initial opportunity values preserve cents when split or represented as bin
   assert.deepEqual(splitOpportunityValues(0, 0), []);
 });
 test("server validation rejects unsafe URLs, invalid records, and out-of-range money", () => {
-  const company = { name: "Acme", tags: ["SMB"], owner: "Sarah Nguyen" };
+  const company = {
+    name: "Acme",
+    tags: ["Residential"],
+    owner: "Sarah Nguyen",
+  };
   assert.equal(companyInput.safeParse(company).success, true);
   assert.equal(
     companyInput.safeParse({ ...company, name: " " }).success,
@@ -48,10 +52,10 @@ test("server validation rejects unsafe URLs, invalid records, and out-of-range m
   );
   const deal = {
     companyId,
-    title: "Pilot",
+    title: "Consultation",
     value: "125.25",
     probability: "60",
-    stage: "Qualified",
+    stage: "Concept design",
     owner: "Sarah",
     closeDate: "",
   };
@@ -76,11 +80,11 @@ test("server validation rejects unsafe URLs, invalid records, and out-of-range m
     false,
   );
 });
-test("company totals exclude closed deals and weight probability by deal value", () => {
+test("client totals exclude handed-over and cancelled projects and weight progress by fees", () => {
   const company = {
     id: companyId,
     name: "Acme",
-    tags: ["SMB"],
+    tags: ["Residential"],
     logo: null,
     owner: "Sarah",
     website: "",
@@ -92,12 +96,14 @@ test("company totals exclude closed deals and weight probability by deal value",
     title: "Deal",
     owner: "Sarah",
     closeDate: null,
+    siteAddress: "",
+    brief: "",
   };
   const deals: Deal[] = [
-    { ...base, value: "100.25", probability: 20, stage: "Discovery" },
-    { ...base, value: "300.75", probability: 80, stage: "Proposal" },
-    { ...base, value: "9999", probability: 100, stage: "Won" },
-    { ...base, value: "9999", probability: 0, stage: "Lost" },
+    { ...base, value: "100.25", probability: 20, stage: "Briefing" },
+    { ...base, value: "300.75", probability: 80, stage: "Detailed design" },
+    { ...base, value: "9999", probability: 100, stage: "Handover" },
+    { ...base, value: "9999", probability: 0, stage: "Cancelled" },
   ];
   const now = new Date("2026-11-01T12:00:00Z");
   const activity: Activity = {
@@ -125,5 +131,45 @@ test("company totals exclude closed deals and weight probability by deal value",
   assert.equal(
     filterCompanies([empty], { ...DEFAULT_FILTERS, activityWindow: 7 }).length,
     0,
+  );
+});
+
+test("projects validate architectural phases, site details, and progress", async () => {
+  const { PROJECT_PHASES, isActiveProject } =
+    await import("../lib/crm/projects");
+  const project = {
+    companyId,
+    title: "Courtyard house",
+    value: "12500.50",
+    probability: 35,
+    owner: "Architect",
+    closeDate: "2026-12-01",
+    siteAddress: "14 Garden Road",
+    brief: "Retain the existing courtyard.",
+  };
+  for (const stage of PROJECT_PHASES) {
+    const parsed = dealInput.parse({ ...project, stage });
+    assert.equal(parsed.stage, stage);
+    assert.equal(parsed.siteAddress, project.siteAddress);
+    assert.equal(parsed.brief, project.brief);
+  }
+  assert.equal(isActiveProject("On hold"), true);
+  assert.equal(isActiveProject("Handover"), false);
+  assert.equal(isActiveProject("Cancelled"), false);
+  for (const stage of ["Discovery", "Won", "Lost"]) {
+    assert.equal(dealInput.safeParse({ ...project, stage }).success, false);
+  }
+  assert.equal(
+    dealInput.safeParse({ ...project, stage: "Briefing", probability: -1 })
+      .success,
+    false,
+  );
+  assert.equal(
+    dealInput.safeParse({
+      ...project,
+      stage: "Briefing",
+      siteAddress: "x".repeat(1001),
+    }).success,
+    false,
   );
 });

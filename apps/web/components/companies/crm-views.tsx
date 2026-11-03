@@ -5,18 +5,11 @@ import Button from "@/components/_ui/button";
 import { Input } from "@/components/_ui/input";
 import { useCompaniesStore } from "@/stores/companies-store";
 import { useCrmEditor, selectClass } from "./crm-editor";
-import type { Deal } from "@/lib/crm/types";
+import { PROJECT_PHASES } from "@/lib/crm/projects";
 import { Forecast } from "./forecast";
 
 import { money } from "@/lib/crm/format";
-const stages: Deal["stage"][] = [
-  "Discovery",
-  "Qualified",
-  "Proposal",
-  "Negotiation",
-  "Won",
-  "Lost",
-];
+const stages = PROJECT_PHASES;
 
 export default function CrmViews() {
   const state = useCompaniesStore();
@@ -26,7 +19,7 @@ export default function CrmViews() {
   const [showCompleted, setShowCompleted] = useState(false);
   const tab = state.activeTab;
   const companyName = (id: string) =>
-    state.companies.find((c) => c.id === id)?.name ?? "Unknown company";
+    state.companies.find((c) => c.id === id)?.name ?? "Unknown client";
   const match = (item: { companyId: string }, text: string) =>
     (!companyId || item.companyId === companyId) &&
     `${text} ${companyName(item.companyId)}`
@@ -50,17 +43,17 @@ export default function CrmViews() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Search ${entity}…`}
+            placeholder={`Search ${tab === "deals" ? "projects" : tab === "activities" ? "correspondence" : entity}…`}
           />
         </label>
         <label className="flex flex-col gap-2 text-sm">
-          Company
+          Client
           <select
             className={selectClass}
             value={companyId}
             onChange={(e) => setCompanyId(e.target.value)}
           >
-            <option value="">All companies</option>
+            <option value="">All clients</option>
             {state.companies.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -73,16 +66,18 @@ export default function CrmViews() {
           variant="primary"
           onClick={() => edit({ entity, companyId: companyId || undefined })}
         >
-          {tab === "activities" ? "Log activity" : `New ${entity.slice(0, -1)}`}
+          {tab === "activities"
+            ? "Log activity"
+            : `New ${tab === "deals" ? "project" : entity.slice(0, -1)}`}
         </Button>
       </div>
       {empty && (
         <p className="text-subtle mb-4 text-sm">
-          Create a company first to add related records.
+          Create a client first to add related records.
         </p>
       )}
       {tab === "deals" && (
-        <div className="grid min-w-[1100px] grid-cols-6 gap-3">
+        <div className="grid min-w-[1760px] grid-cols-8 gap-3">
           {stages.map((stage) => {
             const deals = state.deals.filter(
               (d) => d.stage === stage && match(d, d.title),
@@ -116,15 +111,20 @@ export default function CrmViews() {
                       <p className="text-subtle text-xs">
                         {companyName(deal.companyId)}
                       </p>
+                      {deal.siteAddress && (
+                        <p className="text-subtle mt-2 text-xs">
+                          {deal.siteAddress}
+                        </p>
+                      )}
                       <p className="my-3 text-sm">
-                        {money(Number(deal.value))}
+                        {money(Number(deal.value))} fee
                       </p>
                       <p className="text-subtle mb-2 text-xs">
-                        {deal.owner} · {deal.probability}%
-                        {deal.closeDate && ` · ${deal.closeDate}`}
+                        {deal.owner} · {deal.probability}% complete
+                        {deal.closeDate && ` · Handover ${deal.closeDate}`}
                       </p>
                       <select
-                        aria-label={`Stage for ${deal.title}`}
+                        aria-label={`Project phase for ${deal.title}`}
                         className={selectClass}
                         disabled={state.saving || !state.canWrite}
                         value={deal.stage}
@@ -142,7 +142,7 @@ export default function CrmViews() {
                     </article>
                   ))}
                   {!deals.length && (
-                    <p className="text-subtle py-4 text-xs">No deals</p>
+                    <p className="text-subtle py-4 text-xs">No projects</p>
                   )}
                 </div>
               </section>
@@ -155,7 +155,7 @@ export default function CrmViews() {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-border border-b">
-                {["Name", "Company", "Email", "Phone", "Role", ""].map((h) => (
+                {["Name", "Client", "Email", "Phone", "Role", ""].map((h) => (
                   <th className="p-3" key={h}>
                     {h}
                   </th>
@@ -197,7 +197,7 @@ export default function CrmViews() {
           {!state.contacts.some((c) =>
             match(c, `${c.name} ${c.email} ${c.role}`),
           ) && (
-            <Empty text="No contacts found. Add a contact to keep your customer details together." />
+            <Empty text="No contacts found. Add a contact to keep your client details together." />
           )}
         </div>
       )}

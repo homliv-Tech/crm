@@ -17,6 +17,7 @@ import {
 } from "@/components/_ui/dialog";
 import Button from "@/components/_ui/button";
 import { Input } from "@/components/_ui/input";
+import { PROJECT_PHASES } from "@/lib/crm/projects";
 import { SEGMENTS, STAGES } from "@/data/companies";
 import type { Entity } from "@/lib/crm/validation";
 import { useCompaniesStore } from "@/stores/companies-store";
@@ -26,9 +27,9 @@ type Editor = { entity: Entity; record?: RecordData; companyId?: string };
 const EditorContext = createContext<(editor: Editor) => void>(() => {});
 export const useCrmEditor = () => useContext(EditorContext);
 const labels: Record<Entity, string> = {
-  companies: "company",
+  companies: "client",
   contacts: "contact",
-  deals: "deal",
+  deals: "project",
   tasks: "task",
   activities: "activity",
 };
@@ -98,7 +99,9 @@ function RecordForm({
           type={type}
           defaultValue={String(record[name] ?? fallback)}
           required={required}
-          maxLength={type === "text" ? 200 : undefined}
+          maxLength={
+            name === "siteAddress" ? 1000 : type === "text" ? 200 : undefined
+          }
           min={type === "number" ? 0 : undefined}
           max={name === "probability" ? 100 : undefined}
           step={name === "value" ? "0.01" : undefined}
@@ -131,7 +134,7 @@ function RecordForm({
     );
   }
   const owner = () =>
-    field("owner", "Account owner", "text", true, "Unassigned");
+    field("owner", "Lead architect", "text", true, "Unassigned");
   return (
     <Dialog
       open
@@ -151,17 +154,17 @@ function RecordForm({
             {entity !== "companies" &&
               select(
                 "companyId",
-                "Company",
+                "Client",
                 companies.map((c) => ({ value: c.id, label: c.name })),
                 companyId ?? companies[0]?.id ?? "",
               )}
             {entity === "companies" && (
               <>
-                {field("name", "Company name", "text", true)}
+                {field("name", "Client name", "text", true)}
                 {owner()}
                 <fieldset className="flex flex-col gap-3">
                   <legend className="mb-3 text-sm">
-                    Segment and account stage
+                    Client type and relationship status
                   </legend>
                   <div className="grid grid-cols-2 gap-3">
                     {[...SEGMENTS, ...STAGES].map((tag) => (
@@ -202,35 +205,39 @@ function RecordForm({
                 {field("name", "Full name", "text", true)}
                 {field("email", "Email", "email")}
                 {field("phone", "Phone", "tel")}
-                {field("role", "Job title")}
+                {field("role", "Role in project")}
               </>
             )}
             {entity === "deals" && (
               <>
-                {field("title", "Deal title", "text", true)}
-                {field("value", "Value (USD)", "number", true, 0)}
+                {field("title", "Project name", "text", true)}
+                {field("value", "Architectural fee (INR)", "number", true, 0)}
                 {field(
                   "probability",
-                  "Win probability (%)",
+                  "Project progress (%)",
                   "number",
                   true,
-                  50,
+                  0,
                 )}
                 {select(
                   "stage",
-                  "Stage",
-                  [
-                    "Discovery",
-                    "Qualified",
-                    "Proposal",
-                    "Negotiation",
-                    "Won",
-                    "Lost",
-                  ].map((v) => ({ value: v, label: v })),
-                  "Discovery",
+                  "Project phase",
+                  PROJECT_PHASES.map((v) => ({ value: v, label: v })),
+                  "Briefing",
                 )}
                 {owner()}
-                {field("closeDate", "Expected close date", "date")}
+                {field("closeDate", "Target handover date", "date")}
+                {field("siteAddress", "Site address")}
+                <label className="flex flex-col gap-2 text-sm">
+                  Project brief
+                  <textarea
+                    name="brief"
+                    defaultValue={String(record.brief ?? "")}
+                    maxLength={10000}
+                    className={`${selectClass} h-28 py-2`}
+                    placeholder="Scope, client requirements, and design constraints"
+                  />
+                </label>
               </>
             )}
             {entity === "tasks" && (
@@ -287,7 +294,7 @@ function RecordForm({
                 <p>
                   Delete this {labels[entity]}?{" "}
                   {entity === "companies" &&
-                    "Its contacts, deals, tasks, and activities will also be deleted."}
+                    "Its contacts, projects, tasks, and correspondence will also be deleted."}
                 </p>
                 <div className="mt-3 flex gap-2">
                   <Button

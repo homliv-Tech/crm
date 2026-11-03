@@ -59,8 +59,8 @@ const EMPTY_FORM: FormState = {
   stage: STAGES[0],
   owner: "Unassigned",
   pipelineValue: "",
-  openDeals: "1",
-  winProbability: 50,
+  openDeals: "0",
+  winProbability: 0,
   interactionDate: TODAY,
   interactionType: INTERACTION_TYPES[0],
 };
@@ -83,7 +83,7 @@ export default function NewCompanyDialog() {
     event.preventDefault();
     const name = form.name.trim();
     if (!name) {
-      setNameError("Enter a company name.");
+      setNameError("Enter a client name.");
       nameRef.current?.focus();
       return;
     }
@@ -119,13 +119,13 @@ export default function NewCompanyDialog() {
       >
         <form onSubmit={handleSubmit} className="flex flex-col">
           <DialogHeader>
-            <DialogTitle>New Company</DialogTitle>
+            <DialogTitle>New client</DialogTitle>
             <DialogDescription>
-              Add a company to the pipeline. It appears in the list right away.
+              Add a client to your studio. It appears in the list right away.
             </DialogDescription>
           </DialogHeader>
 
-          <FormSection title="Company">
+          <FormSection title="Client">
             <LogoUpload
               value={form.logo}
               companyName={form.name}
@@ -133,7 +133,7 @@ export default function NewCompanyDialog() {
             />
 
             <Field
-              label="Company name"
+              label="Client name"
               htmlFor="company-name"
               required
               error={nameError ?? undefined}
@@ -146,7 +146,7 @@ export default function NewCompanyDialog() {
                   update("name", event.target.value);
                   if (nameError) setNameError(null);
                 }}
-                placeholder="Acme Inc."
+                placeholder="The Mehta family"
                 autoComplete="off"
                 aria-invalid={nameError ? true : undefined}
                 aria-describedby={nameError ? "company-name-error" : undefined}
@@ -156,7 +156,7 @@ export default function NewCompanyDialog() {
             </Field>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Segment" htmlFor="company-segment">
+              <Field label="Client type" htmlFor="company-segment">
                 <Select
                   value={form.segment}
                   onValueChange={(value) => update("segment", value as Segment)}
@@ -173,7 +173,7 @@ export default function NewCompanyDialog() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Stage" htmlFor="company-stage">
+              <Field label="Client status" htmlFor="company-stage">
                 <Select
                   value={form.stage}
                   onValueChange={(value) => update("stage", value as Stage)}
@@ -193,26 +193,26 @@ export default function NewCompanyDialog() {
             </div>
           </FormSection>
 
-          <FormSection title="Ownership & deal">
-            <Field label="Account owner" htmlFor="company-owner">
+          <FormSection title="Project setup">
+            <Field label="Lead architect" htmlFor="company-owner">
               <Input
                 id="company-owner"
                 value={form.owner}
                 onChange={(event) => update("owner", event.target.value)}
                 required
                 maxLength={200}
-                placeholder="Account owner"
+                placeholder="Lead architect"
               />
             </Field>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Pipeline value" htmlFor="company-pipeline">
+              <Field label="Initial project fees (INR)" htmlFor="company-pipeline">
                 <div className="relative">
                   <span
                     aria-hidden
                     className="text-subtle pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[14px] leading-none"
                   >
-                    $
+                    ₹
                   </span>
                   <Input
                     id="company-pipeline"
@@ -229,7 +229,7 @@ export default function NewCompanyDialog() {
                   />
                 </div>
               </Field>
-              <Field label="Open deals" htmlFor="company-deals">
+              <Field label="Active projects" htmlFor="company-deals">
                 <Input
                   id="company-deals"
                   type="number"
@@ -244,7 +244,7 @@ export default function NewCompanyDialog() {
             </div>
 
             <Field
-              label="Win probability"
+              label="Initial project progress"
               htmlFor="company-win"
               trailing={
                 <span className="caption-style text-foreground tabular-nums">
@@ -255,7 +255,7 @@ export default function NewCompanyDialog() {
               <div className="flex flex-col gap-3">
                 <Slider
                   id="company-win"
-                  aria-label="Win probability"
+                  aria-label="Initial project progress"
                   min={0}
                   max={100}
                   step={1}
@@ -320,7 +320,7 @@ export default function NewCompanyDialog() {
             </DialogClose>
             <Button variant="primary" size="sm" type="submit" disabled={saving}>
               <PlusIcon aria-hidden className="size-3" />
-              {saving ? "Saving…" : "Create Company"}
+              {saving ? "Saving…" : "Create client"}
             </Button>
           </DialogFooter>
         </form>

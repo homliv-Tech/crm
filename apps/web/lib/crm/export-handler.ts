@@ -48,7 +48,7 @@ export function createExportHandler(deps: {
       return new Response(`\uFEFF${csv}`, {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename="companies-${new Date().toISOString().slice(0, 10)}.csv"`,
+          "Content-Disposition": `attachment; filename="clients-${new Date().toISOString().slice(0, 10)}.csv"`,
           "Cache-Control": "private, no-store",
           "X-Content-Type-Options": "nosniff",
         },

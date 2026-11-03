@@ -1,3 +1,4 @@
+import { PROJECT_PHASES } from "../crm/projects";
 import { sql } from "drizzle-orm";
 import {
   pgTable,
@@ -13,14 +14,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const dealStage = pgEnum("deal_stage", [
-  "Discovery",
-  "Qualified",
-  "Proposal",
-  "Negotiation",
-  "Won",
-  "Lost",
-]);
+export const dealStage = pgEnum("deal_stage", PROJECT_PHASES);
 export const activityType = pgEnum("activity_type", [
   "Note",
   "Call",
@@ -81,10 +75,12 @@ export const deals = pgTable(
       .references(() => companies.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     value: numeric("value", { precision: 14, scale: 2 }).notNull().default("0"),
-    probability: integer("probability").notNull().default(50),
-    stage: dealStage("stage").notNull().default("Discovery"),
+    probability: integer("probability").notNull().default(0),
+    stage: dealStage("stage").notNull().default("Briefing"),
     owner: text("owner").notNull(),
     closeDate: date("close_date"),
+    siteAddress: text("site_address").notNull().default(""),
+    brief: text("brief").notNull().default(""),
     ...timestamps,
   },
   (t) => [
