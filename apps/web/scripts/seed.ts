@@ -21,35 +21,37 @@ async function main() {
       .insert(companies)
       .values({
         id,
-        name: "Example account (demo)",
+        name: "Mehta family (demo)",
         owner: "Unassigned",
-        tags: ["SMB", "New Logo"],
+        tags: ["Residential", "Active"],
         description:
-          "Sample account. Delete this company to remove all its demo records.",
+          "Sample client. Delete this client to remove all its demo records.",
       }),
     db
       .insert(contacts)
       .values({
         companyId: id,
-        name: "Example buyer",
-        email: "buyer@example.com",
-        role: "Purchasing",
+        name: "Ananya Mehta",
+        email: "ananya@example.com",
+        role: "Homeowner",
       }),
     db
       .insert(deals)
       .values({
         companyId: id,
-        title: "Example pilot",
+        title: "Courtyard house renovation",
         value: "10000.00",
-        probability: 50,
-        stage: "Qualified",
+        probability: 20,
+        stage: "Concept design",
+        siteAddress: "14 Garden Road",
+        brief: "Renovate a family home around a central courtyard.",
         owner: "Unassigned",
       }),
     db
       .insert(tasks)
       .values({
         companyId: id,
-        title: "Schedule a pilot review",
+        title: "Review concept drawings with the client",
         dueDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
         owner: "Unassigned",
       }),
@@ -58,10 +60,10 @@ async function main() {
       .values({
         companyId: id,
         type: "Note",
-        body: "Demo account created. Open company details to try contacts, deals, tasks, and activity.",
+        body: "Demo client created. Open client details to manage contacts, projects, tasks, and correspondence.",
       }),
   ]);
-  console.log("Created one demo account and its related records.");
+  console.log("Created one demo client and its related records.");
 }
 main().catch((error) => {
   console.error(

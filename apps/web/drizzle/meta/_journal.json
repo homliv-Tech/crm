@@ -8,6 +8,13 @@
       "when": 1793540833953,
       "tag": "0000_easy_king_bedlam",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793678786177,
+      "tag": "0001_architecture_projects",
+      "breakpoints": true
     }
   ]
 }

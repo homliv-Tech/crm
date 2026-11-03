@@ -1,20 +1,20 @@
 export const TABLE_COLUMNS = [
-  { key: "name", label: "Companies", className: "justify-start" },
-  { key: "segment", label: "Segment & Stage", className: "justify-start" },
-  { key: "owner", label: "Account Owner", className: "justify-start" },
+  { key: "name", label: "Clients", className: "justify-start" },
+  { key: "segment", label: "Client type & status", className: "justify-start" },
+  { key: "owner", label: "Lead architect", className: "justify-start" },
   {
     key: "openDeals",
-    label: "Open Deals",
+    label: "Active projects",
     className: "justify-end tabular-nums",
   },
   {
     key: "pipelineValue",
-    label: "Pipeline Value",
+    label: "Active project fees",
     className: "justify-end tabular-nums",
   },
   {
     key: "winProbability",
-    label: "Win Probability",
+    label: "Project progress",
     className: "justify-end tabular-nums",
   },
   { key: "trend", label: "Activity Trend", className: "justify-center" },

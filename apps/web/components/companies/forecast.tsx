@@ -1,43 +1,37 @@
 "use client";
+
+import Button from "@/components/_ui/button";
 import { useCompaniesStore } from "@/stores/companies-store";
 import { money } from "@/lib/crm/format";
+import { isActiveProject, PROJECT_PHASES } from "@/lib/crm/projects";
+import { useCrmEditor } from "./crm-editor";
 
 export function Forecast() {
-  const deals = useCompaniesStore((s) => s.deals);
-  const tasks = useCompaniesStore((s) => s.tasks);
-  const open = deals.filter((d) => d.stage !== "Won" && d.stage !== "Lost");
-  const pipeline = open.reduce((v, d) => v + Number(d.value), 0);
-  const weighted = open.reduce(
-    (v, d) => v + (Number(d.value) * d.probability) / 100,
-    0,
-  );
-  const won = deals
-    .filter((d) => d.stage === "Won")
-    .reduce((v, d) => v + Number(d.value), 0);
-  const stages = ["Discovery", "Qualified", "Proposal", "Negotiation"];
-  const values = stages.map((s) =>
-    open.filter((d) => d.stage === s).reduce((v, d) => v + Number(d.value), 0),
-  );
-  const max = Math.max(...values, 1);
+  const state = useCompaniesStore();
+  const edit = useCrmEditor();
+  const open = state.deals.filter((d) => isActiveProject(d.stage));
+  const fees = open.reduce((v, d) => v + Number(d.value), 0);
+  const today = new Date().toISOString().slice(0, 10);
+  const tasks = state.tasks.filter((t) => !t.completed);
+  const deadlines = open
+    .filter((d) => d.closeDate)
+    .sort((a, b) => a.closeDate!.localeCompare(b.closeDate!));
+  const clientName = (id: string) =>
+    state.companies.find((c) => c.id === id)?.name ?? "Unknown client";
+
   return (
-    <div className="min-h-0 flex-1 overflow-auto p-6">
+    <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-6">
       <p className="text-subtle mb-6 text-sm">
-        Current pipeline across all expected close dates. Weighted forecast is
-        deal value × win probability.
+        Keep client relationships, design work, and upcoming handovers in view.
+        Fees are the total architectural fees for active projects, including
+        projects on hold.
       </p>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ["Open pipeline", money(pipeline)],
-          ["Weighted forecast", money(weighted)],
-          ["Won revenue", money(won)],
-          [
-            "Overdue tasks",
-            tasks.filter(
-              (t) =>
-                !t.completed &&
-                t.dueDate < new Date().toISOString().slice(0, 10),
-            ).length,
-          ],
+          ["Clients", state.companies.length],
+          ["Active projects", open.length],
+          ["Active project fees", money(fees)],
+          ["Overdue tasks", tasks.filter((t) => t.dueDate < today).length],
         ].map(([label, value]) => (
           <div className="border-border rounded-xl border p-5" key={label}>
             <p className="text-subtle mb-3 text-sm">{label}</p>
@@ -46,35 +40,97 @@ export function Forecast() {
         ))}
       </div>
       <section className="border-border mt-6 rounded-xl border p-5">
-        <h2 className="mb-6 text-base">Pipeline by stage</h2>
-        <div
-          role="img"
-          aria-label={stages
-            .map((s, i) => `${s}: ${money(values[i])}`)
-            .join(", ")}
-          className="flex flex-col gap-5"
-        >
-          {stages.map((s, i) => (
-            <div key={s}>
-              <div className="mb-2 flex justify-between gap-2 text-sm">
-                <span>{s}</span>
-                <span>{money(values[i])}</span>
-              </div>
-              <div className="bg-muted h-5 overflow-hidden rounded">
-                <div
-                  className="bg-primary h-full rounded"
-                  style={{ width: `${(values[i] / max) * 100}%` }}
-                />
-              </div>
+        <h2 className="mb-5 text-base">Projects by phase</h2>
+        <div className="flex flex-wrap gap-3">
+          {PROJECT_PHASES.map((phase) => (
+            <div
+              key={phase}
+              className="bg-muted/30 min-w-36 flex-1 rounded-lg p-3"
+            >
+              <p className="text-subtle text-sm">{phase}</p>
+              <p className="mt-2 text-xl tabular-nums">
+                {state.deals.filter((d) => d.stage === phase).length}
+              </p>
             </div>
           ))}
         </div>
+        <Button
+          variant="secondary"
+          className="mt-5"
+          onClick={() => state.setActiveTab("deals")}
+        >
+          View projects
+        </Button>
       </section>
-      {!deals.length && (
-        <p className="text-subtle mt-6 text-sm">
-          Add your first deal to start forecasting.
-        </p>
-      )}
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <section className="border-border rounded-xl border p-5">
+          <h2 className="mb-4 text-base">Target handovers</h2>
+          <div className="divide-border divide-y">
+            {deadlines.slice(0, 6).map((project) => (
+              <div key={project.id} className="py-3">
+                <Button
+                  variant="subtle"
+                  disabled={!state.canWrite}
+                  onClick={() =>
+                    edit({ entity: "deals", record: { ...project } })
+                  }
+                >
+                  {project.title}
+                </Button>
+                <p className="text-subtle mt-1 text-xs">
+                  {clientName(project.companyId)} · {project.stage}
+                </p>
+                <p
+                  className={`mt-2 text-xs ${project.closeDate! < today ? "text-red-400" : "text-subtle"}`}
+                >
+                  {project.closeDate! < today ? "Overdue · " : ""}
+                  {project.closeDate}
+                </p>
+              </div>
+            ))}
+          </div>
+          {!deadlines.length && (
+            <p className="text-subtle text-sm">
+              Set a target handover date on a project to see it here.
+            </p>
+          )}
+        </section>
+        <section className="border-border rounded-xl border p-5">
+          <h2 className="mb-4 text-base">Tasks needing attention</h2>
+          <div className="divide-border divide-y">
+            {[...tasks]
+              .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+              .slice(0, 6)
+              .map((task) => (
+                <div key={task.id} className="py-3">
+                  <Button
+                    variant="subtle"
+                    disabled={!state.canWrite}
+                    onClick={() =>
+                      edit({ entity: "tasks", record: { ...task } })
+                    }
+                  >
+                    {task.title}
+                  </Button>
+                  <p className="text-subtle mt-1 text-xs">
+                    {clientName(task.companyId)} · {task.owner}
+                  </p>
+                  <p
+                    className={`mt-2 text-xs ${task.dueDate < today ? "text-red-400" : "text-subtle"}`}
+                  >
+                    Due {task.dueDate}
+                  </p>
+                </div>
+              ))}
+          </div>
+          {!tasks.length && (
+            <p className="text-subtle text-sm">
+              No outstanding tasks. Add a task to track a drawing review, site
+              visit, or client decision.
+            </p>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

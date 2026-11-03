@@ -1,18 +1,18 @@
 export const SEGMENTS = [
-  "Enterprise",
-  "Mid-Market",
-  "SMB",
-  "Strategic",
+  "Commercial",
+  "Institutional",
+  "Residential",
+  "Mixed-use",
 ] as const;
 
 export const STAGES = [
-  "New Logo",
-  "Upsell",
-  "Expansion",
-  "Renewal",
-  "Pilot",
-  "Co-Sell",
-  "Land & Expand",
+  "Enquiry",
+  "Active",
+  "Returning",
+  "Ongoing",
+  "Consultation",
+  "Collaboration",
+  "Retained",
 ] as const;
 
 export type Segment = (typeof SEGMENTS)[number];
@@ -32,17 +32,17 @@ export type TagTone =
   | "neutral";
 
 export const TAG_TONES: Record<Tag, TagTone> = {
-  Enterprise: "blue",
-  "Mid-Market": "moss",
-  SMB: "yellow",
-  Strategic: "red",
-  "New Logo": "green",
-  Upsell: "purple",
-  Expansion: "green",
-  Renewal: "green",
-  Pilot: "orange",
-  "Co-Sell": "amber",
-  "Land & Expand": "teal",
+  Commercial: "blue",
+  Institutional: "moss",
+  Residential: "yellow",
+  "Mixed-use": "red",
+  Enquiry: "green",
+  Active: "purple",
+  Returning: "green",
+  Ongoing: "green",
+  Consultation: "orange",
+  Collaboration: "amber",
+  Retained: "teal",
 };
 
 export type Owner = {
@@ -84,7 +84,7 @@ export const OWNERS: Owner[] = OWNER_NAMES.map((name, i) => ({
   avatar: AVATARS[i % AVATARS.length],
   email: `${name.toLowerCase().replace(" ", ".")}@crm.com`,
   phone: `+1 (202) ${String(199 + i).padStart(3, "0")}-${String(5520 + i * 37).slice(-4)}`,
-  role: i % 3 === 0 ? "Senior Account Executive" : "Account Executive",
+  role: i % 3 === 0 ? "Project architect" : "Architect",
 }));
 
 export const CURRENT_USER: Owner = {
@@ -92,7 +92,7 @@ export const CURRENT_USER: Owner = {
   avatar: "/assets/images/_common/avatars/jensen.png",
   email: "jensen.ackles@crm.com",
   phone: "+1 (202) 184-5501",
-  role: "Head of Sales",
+  role: "Studio director",
 };
 
 export function ownerByName(name: string): Owner {
@@ -102,7 +102,7 @@ export function ownerByName(name: string): Owner {
       avatar: AVATARS[0],
       email: "",
       phone: "",
-      role: "Account owner",
+      role: "Lead architect",
     }
   );
 }
@@ -153,7 +153,7 @@ const COMPANY_RECORDS: Omit<Company, "logo">[] = [
   {
     id: "lvmh",
     name: "LVMH",
-    tags: ["Enterprise", "Upsell", "Expansion", "Renewal"],
+    tags: ["Commercial", "Active", "Returning", "Ongoing"],
     owner: "Sarah Nguyen",
     openDeals: 7,
     pipelineValue: 420000,
@@ -165,7 +165,7 @@ const COMPANY_RECORDS: Omit<Company, "logo">[] = [
   {
     id: "disney",
     name: "Disney",
-    tags: ["Enterprise", "New Logo"],
+    tags: ["Commercial", "Enquiry"],
     owner: "James Taylor",
     openDeals: 4,
     pipelineValue: 311242,
@@ -177,7 +177,7 @@ const COMPANY_RECORDS: Omit<Company, "logo">[] = [
   {
     id: "paypal",
     name: "Paypal",
-    tags: ["Enterprise"],
+    tags: ["Commercial"],
     owner: "Maria Keller",
     openDeals: 5,
     pipelineValue: 124232,
@@ -189,7 +189,7 @@ const COMPANY_RECORDS: Omit<Company, "logo">[] = [
   {
     id: "united-airlines",
     name: "United Airlines",
-    tags: ["Renewal"],
+    tags: ["Ongoing"],
     owner: "Nia Jameson",
     openDeals: 2,
     pipelineValue: 221231,
@@ -201,7 +201,7 @@ const COMPANY_RECORDS: Omit<Company, "logo">[] = [
   {
     id: "apple",
     name: "Apple",
-    tags: ["Pilot"],
+    tags: ["Consultation"],
     owner: "Alex Santos",
     openDeals: 6,
     pipelineValue: 530111,
@@ -213,19 +213,19 @@ const COMPANY_RECORDS: Omit<Company, "logo">[] = [
   {
     id: "microsoft",
     name: "Microsoft",
-    tags: ["Strategic", "Expansion"],
+    tags: ["Mixed-use", "Returning"],
     owner: "Mark Darnalds",
     openDeals: 8,
     pipelineValue: 320222,
     winProbability: 86,
     trend: TREND_C,
-    lastInteraction: { date: "2026-03-15", label: "Pilot" },
+    lastInteraction: { date: "2026-03-15", label: "Consultation" },
     activityDays: 79,
   },
   {
     id: "airbnb",
     name: "Airbnb",
-    tags: ["Upsell", "Expansion", "SMB", "Pilot"],
+    tags: ["Active", "Returning", "Residential", "Consultation"],
     owner: "Drew Nash",
     openDeals: 3,
     pipelineValue: 122230,
@@ -237,7 +237,7 @@ const COMPANY_RECORDS: Omit<Company, "logo">[] = [
   {
     id: "intercom",
     name: "Intercom",
-    tags: ["Enterprise", "Mid-Market"],
+    tags: ["Commercial", "Institutional"],
     owner: "Lina Wong",
     openDeals: 5,
     pipelineValue: 230112,
@@ -249,7 +249,7 @@ const COMPANY_RECORDS: Omit<Company, "logo">[] = [
   {
     id: "attio",
     name: "Attio",
-    tags: ["Mid-Market", "Upsell", "Renewal", "Co-Sell"],
+    tags: ["Institutional", "Active", "Ongoing", "Collaboration"],
     owner: "Jamie Fox",
     openDeals: 2,
     pipelineValue: 420222,
@@ -261,55 +261,55 @@ const COMPANY_RECORDS: Omit<Company, "logo">[] = [
   {
     id: "google",
     name: "Google",
-    tags: ["SMB", "Enterprise", "Expansion", "Pilot"],
+    tags: ["Residential", "Commercial", "Returning", "Consultation"],
     owner: "Kate Chen",
     openDeals: 8,
     pipelineValue: 112277,
     winProbability: 24,
     trend: TREND_B,
-    lastInteraction: { date: "2026-06-07", label: "Renewal" },
+    lastInteraction: { date: "2026-06-07", label: "Ongoing" },
     activityDays: 62,
   },
   {
     id: "netflix",
     name: "Netflix",
-    tags: ["Mid-Market"],
+    tags: ["Institutional"],
     owner: "Ricky Brown",
     openDeals: 3,
     pipelineValue: 221221,
     winProbability: 72,
     trend: TREND_C,
-    lastInteraction: { date: "2026-06-18", label: "Pilot" },
+    lastInteraction: { date: "2026-06-18", label: "Consultation" },
     activityDays: 55,
   },
   {
     id: "spotify",
     name: "Spotify",
-    tags: ["Land & Expand", "Expansion", "Strategic"],
+    tags: ["Retained", "Returning", "Mixed-use"],
     owner: "Hannah Mills",
     openDeals: 5,
     pipelineValue: 170991,
     winProbability: 55,
     trend: TREND_C,
-    lastInteraction: { date: "2026-07-01", label: "Expansion" },
+    lastInteraction: { date: "2026-07-01", label: "Returning" },
     activityDays: 48,
   },
   {
     id: "shopify",
     name: "Shopify",
-    tags: ["Co-Sell", "Expansion"],
+    tags: ["Collaboration", "Returning"],
     owner: "Emma Green",
     openDeals: 9,
     pipelineValue: 139007,
     winProbability: 45,
     trend: TREND_C,
-    lastInteraction: { date: "2026-07-18", label: "Renewal" },
+    lastInteraction: { date: "2026-07-18", label: "Ongoing" },
     activityDays: 40,
   },
   {
     id: "zoom",
     name: "Zoom",
-    tags: ["Expansion", "Land & Expand", "Renewal"],
+    tags: ["Returning", "Retained", "Ongoing"],
     owner: "Oliver Chan",
     openDeals: 8,
     pipelineValue: 289921,
@@ -321,7 +321,7 @@ const COMPANY_RECORDS: Omit<Company, "logo">[] = [
   {
     id: "slack",
     name: "Slack",
-    tags: ["Mid-Market", "Co-Sell"],
+    tags: ["Institutional", "Collaboration"],
     owner: "Ava Brooks",
     openDeals: 4,
     pipelineValue: 333221,
@@ -333,7 +333,7 @@ const COMPANY_RECORDS: Omit<Company, "logo">[] = [
   {
     id: "stripe",
     name: "Stripe",
-    tags: ["Expansion", "SMB", "Upsell", "Pilot"],
+    tags: ["Returning", "Residential", "Active", "Consultation"],
     owner: "Noah Lee",
     openDeals: 3,
     pipelineValue: 442231,
@@ -345,7 +345,7 @@ const COMPANY_RECORDS: Omit<Company, "logo">[] = [
   {
     id: "snowflake",
     name: "Snowflake",
-    tags: ["Enterprise", "Mid-Market"],
+    tags: ["Commercial", "Institutional"],
     owner: "Grace Miller",
     openDeals: 6,
     pipelineValue: 520000,
@@ -357,7 +357,7 @@ const COMPANY_RECORDS: Omit<Company, "logo">[] = [
   {
     id: "hubspot",
     name: "Hubspot",
-    tags: ["Expansion", "Co-Sell", "Renewal", "Pilot"],
+    tags: ["Returning", "Collaboration", "Ongoing", "Consultation"],
     owner: "Chloe Park",
     openDeals: 2,
     pipelineValue: 210123,
@@ -374,11 +374,11 @@ export const COMPANIES: Company[] = COMPANY_RECORDS.map((company) => ({
 }));
 
 export const SORT_OPTIONS = [
-  { value: "pipelineValue", label: "Pipeline Value" },
-  { value: "winProbability", label: "Win Probability" },
-  { value: "openDeals", label: "Open Deals" },
+  { value: "pipelineValue", label: "Active project fees" },
+  { value: "winProbability", label: "Project progress" },
+  { value: "openDeals", label: "Active projects" },
   { value: "lastInteraction", label: "Last Interaction" },
-  { value: "name", label: "Company Name" },
+  { value: "name", label: "Client name" },
 ] as const;
 
 export type SortKey = (typeof SORT_OPTIONS)[number]["value"];
@@ -390,12 +390,12 @@ export const INTERACTION_TYPES = [
   "Security",
   "Legal",
   "Product",
-  "Pilot",
+  "Consultation",
   "Exec",
   "QBR Call",
   "Partner",
-  "Renewal",
-  "Expansion",
+  "Ongoing",
+  "Returning",
 ] as const;
 
 export const ACTIVITY_WINDOWS = [0, 7, 30, 60, 90] as const;

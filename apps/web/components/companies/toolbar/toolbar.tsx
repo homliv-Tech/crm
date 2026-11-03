@@ -42,7 +42,7 @@ export default function CompaniesToolbar() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `companies-${TODAY}.csv`;
+      link.download = `clients-${TODAY}.csv`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -70,7 +70,7 @@ export default function CompaniesToolbar() {
           onChange={setOwner}
         />
         <FilterMenu
-          label="Stage"
+          label="Client status"
           value={stage}
           options={STAGE_OPTIONS}
           onChange={setStage}
@@ -100,7 +100,7 @@ export default function CompaniesToolbar() {
           onClick={() => setNewCompanyOpen(true)}
         >
           <PlusIcon aria-hidden className="size-3" />
-          New Company
+          New client
         </Button>
       </div>
     </div>

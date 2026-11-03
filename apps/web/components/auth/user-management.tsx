@@ -63,7 +63,7 @@ export default function UserManagement() {
         {[
           ["Admin", "Manage users, roles, and all CRM records."],
           ["Member", "Create, edit, and delete CRM records."],
-          ["Viewer", "View CRM records and export company data."],
+          ["Viewer", "View CRM records and export client data."],
         ].map(([role, description]) => (
           <div key={role} className="border-border rounded-xl border p-4">
             <h2 className="font-medium">{role}</h2>

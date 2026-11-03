@@ -88,7 +88,7 @@ export default function MobileFilters({ className }: MobileFiltersProps) {
         <SheetHeader className="px-4">
           <SheetTitle>Filters</SheetTitle>
           <SheetDescription className="sr-only">
-            Sort and filter the companies table
+            Sort and filter the clients table
           </SheetDescription>
           <SheetClose asChild>
             <Button
@@ -122,7 +122,7 @@ export default function MobileFilters({ className }: MobileFiltersProps) {
               </Select>
             </Field>
 
-            <Field label="Account owner" htmlFor="mobile-owner">
+            <Field label="Lead architect" htmlFor="mobile-owner">
               <Select value={owner} onValueChange={setOwner}>
                 <SelectTrigger id="mobile-owner">
                   <SelectValue />
@@ -147,7 +147,7 @@ export default function MobileFilters({ className }: MobileFiltersProps) {
               </Select>
             </Field>
 
-            <Field label="Stage" htmlFor="mobile-stage">
+            <Field label="Client status" htmlFor="mobile-stage">
               <Select value={stage} onValueChange={setStage}>
                 <SelectTrigger id="mobile-stage">
                   <SelectValue />

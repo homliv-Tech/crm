@@ -33,13 +33,13 @@ export default function CompanyDetail() {
       <SheetContent side="right" className="sm:w-[600px] sm:max-w-[600px]">
         <SheetHeader>
           <div>
-            <SheetTitle>{company?.name ?? "Company details"}</SheetTitle>
+            <SheetTitle>{company?.name ?? "Client details"}</SheetTitle>
             <SheetDescription>
-              Account, contacts, deals, and activity
+              Client, contacts, projects, and correspondence
             </SheetDescription>
           </div>
           <SheetClose asChild>
-            <Button aria-label="Close company details">Close</Button>
+            <Button aria-label="Close client details">Close</Button>
           </SheetClose>
         </SheetHeader>
         {company && (
@@ -53,7 +53,7 @@ export default function CompanyDetail() {
                     editor({ entity: "companies", record: { ...company } })
                   }
                 >
-                  Edit company
+                  Edit client
                 </Button>
               </div>
               <p className="text-subtle text-sm">
@@ -80,11 +80,11 @@ export default function CompanyDetail() {
                   <p className="mt-2">{money(company.pipelineValue)}</p>
                 </div>
                 <div className="border-border rounded-lg border p-3">
-                  <p className="text-subtle">Open deals</p>
+                  <p className="text-subtle">Active projects</p>
                   <p className="mt-2">{company.openDeals}</p>
                 </div>
                 <div className="border-border rounded-lg border p-3">
-                  <p className="text-subtle">Win probability</p>
+                  <p className="text-subtle">Project progress</p>
                   <p className="mt-2">{company.winProbability}%</p>
                 </div>
               </div>
@@ -144,7 +144,7 @@ export default function CompanyDetail() {
                     editor({ entity: "deals", companyId: company.id })
                   }
                 >
-                  Add deal
+                  Add project
                 </Button>
               </div>
               {deals.map((d) => (
@@ -156,12 +156,26 @@ export default function CompanyDetail() {
                 >
                   <p className="text-sm">{d.title}</p>
                   <p className="text-subtle mt-1 text-xs">
-                    {d.stage} · {money(Number(d.value))} · {d.probability}%
+                    {d.stage} · {money(Number(d.value))} fee · {d.probability}%
+                    complete
                   </p>
+                  {d.siteAddress && (
+                    <p className="text-subtle mt-2 text-xs">{d.siteAddress}</p>
+                  )}
+                  {d.closeDate && (
+                    <p className="text-subtle mt-2 text-xs">
+                      Target handover: {d.closeDate}
+                    </p>
+                  )}
+                  {d.brief && (
+                    <p className="mt-2 text-sm whitespace-pre-wrap">
+                      {d.brief}
+                    </p>
+                  )}
                 </button>
               ))}
               {!deals.length && (
-                <p className="text-subtle text-sm">No deals yet.</p>
+                <p className="text-subtle text-sm">No projects yet.</p>
               )}
             </section>
             <section className="mb-6">

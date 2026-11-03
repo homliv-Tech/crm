@@ -14,12 +14,12 @@ export default function TableFooter({ count }: { count: number }) {
     : 0;
   return (
     <div className="border-border text-subtle grid shrink-0 grid-cols-1 gap-2 border-t p-3 text-xs sm:grid-cols-3">
-      <p>{count} companies in view</p>
+      <p>{count} clients in view</p>
       <p>
-        Pipeline: <span className="text-foreground">{money(sum)}</span>
+        Active project fees: <span className="text-foreground">{money(sum)}</span>
       </p>
       <p>
-        Average win probability:{" "}
+        Average client progress:{" "}
         <span className="text-foreground">{average}%</span>
       </p>
     </div>

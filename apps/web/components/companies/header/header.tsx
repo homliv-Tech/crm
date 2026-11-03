@@ -12,12 +12,12 @@ import ActiveDot from "@/public/assets/images/companies/header/active-dot.svg";
 import SearchIcon from "@/public/assets/images/_common/search.svg";
 
 const TABS = [
-  { value: "companies", label: "Companies" },
-  { value: "deals", label: "Deals" },
-  { value: "forecast", label: "Forecast" },
+  { value: "companies", label: "Clients" },
+  { value: "deals", label: "Projects" },
+  { value: "forecast", label: "Studio overview" },
   { value: "contacts", label: "Contacts" },
   { value: "tasks", label: "Tasks" },
-  { value: "activities", label: "Activities" },
+  { value: "activities", label: "Correspondence" },
 ];
 
 export default function CompaniesHeader() {
@@ -41,7 +41,7 @@ export default function CompaniesHeader() {
             <MenuIcon aria-hidden className="size-3.5" />
           </Button>
           <h1 className="truncate">
-            {TABS.find((t) => t.value === activeTab)?.label ?? "Companies"}
+            {TABS.find((t) => t.value === activeTab)?.label ?? "Clients"}
           </h1>
           <span className="caption-style bg-muted inline-flex shrink-0 items-center gap-0.5 rounded-full border border-[#363636] py-[3px] pr-[5px] pl-[3px]">
             <ActiveDot aria-hidden className="size-3" />

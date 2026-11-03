@@ -1,3 +1,4 @@
+import { isActiveProject } from "./projects";
 import type { Tag } from "@/data/companies";
 import type { Activity, Deal, CrmCompany } from "./types";
 
@@ -18,8 +19,7 @@ export function summarizeCompanies(
 ): CrmCompany[] {
   return accounts.map((company) => {
     const open = deals.filter(
-      (d) =>
-        d.companyId === company.id && d.stage !== "Won" && d.stage !== "Lost",
+      (d) => d.companyId === company.id && isActiveProject(d.stage),
     );
     const pipelineValue = open.reduce((sum, d) => sum + Number(d.value), 0);
     const history = activities
@@ -43,7 +43,11 @@ export function summarizeCompanies(
             open.reduce((sum, d) => sum + Number(d.value) * d.probability, 0) /
               pipelineValue,
           )
-        : 0,
+        : open.length
+          ? Math.round(
+              open.reduce((sum, d) => sum + d.probability, 0) / open.length,
+            )
+          : 0,
       trend,
       lastInteraction: {
         date: last?.occurredAt.slice(0, 10) ?? "",

@@ -17,7 +17,7 @@ export default async function LoginPage({
   return (
     <main className="flex min-h-dvh items-center justify-center p-6">
       <section className="border-border bg-muted/20 w-full max-w-sm rounded-2xl border p-7">
-        <h1 className="mb-2 text-2xl">Sales CRM</h1>
+        <h1 className="mb-2 text-2xl">Studio CRM</h1>
         <p className="text-subtle mb-7 text-sm">
           Enter your work email to receive a sign-in code.
         </p>

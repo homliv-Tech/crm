@@ -1,3 +1,4 @@
+import type { ProjectPhase } from "./projects";
 import type { Company } from "@/data/companies";
 
 export type CrmCompany = Company & { website: string; description: string };
@@ -15,13 +16,9 @@ export type Deal = {
   title: string;
   value: string;
   probability: number;
-  stage:
-    | "Discovery"
-    | "Qualified"
-    | "Proposal"
-    | "Negotiation"
-    | "Won"
-    | "Lost";
+  stage: ProjectPhase;
+  siteAddress: string;
+  brief: string;
   owner: string;
   closeDate: string | null;
 };

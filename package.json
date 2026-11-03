@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "dev": "turbo run dev",
+    "dev:crm": "bun run --filter @crm/web dev",
     "build": "turbo run build",
     "start": "bun run --filter @crm/web start",
     "lint": "turbo run lint",
