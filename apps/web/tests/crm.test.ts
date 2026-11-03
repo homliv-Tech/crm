@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  companyCreateInput,
   companyInput,
   contactInput,
   dealInput,
@@ -12,6 +13,35 @@ import type { Deal, Activity } from "../lib/crm/types";
 import { splitOpportunityValues } from "../lib/crm/money";
 
 const companyId = "64ae6ce3-ec75-4b16-bb68-32e5cfc4b321";
+test("new clients require a project to retain initial progress without restricting client edits", () => {
+  const client = { name: "Client", tags: [], owner: "Architect" };
+  assert.equal(companyCreateInput.safeParse(client).success, true);
+  assert.equal(
+    companyCreateInput.safeParse({ ...client, openDeals: 0, winProbability: 0 })
+      .success,
+    true,
+  );
+  for (const openDeals of [undefined, 0]) {
+    const result = companyCreateInput.safeParse({
+      ...client,
+      openDeals,
+      winProbability: 25,
+    });
+    assert.equal(result.success, false);
+    if (!result.success) {
+      assert.deepEqual(result.error.issues[0].path, ["openDeals"]);
+    }
+  }
+  assert.equal(
+    companyCreateInput.parse({ ...client, openDeals: 1, winProbability: 25 })
+      .winProbability,
+    25,
+  );
+  assert.equal(
+    companyInput.safeParse({ ...client, winProbability: 25 }).success,
+    true,
+  );
+});
 test("initial opportunity values preserve cents when split or represented as binary floats", () => {
   assert.deepEqual(splitOpportunityValues(0.29, 1), ["0.29"]);
   assert.deepEqual(splitOpportunityValues(100.01, 3), [

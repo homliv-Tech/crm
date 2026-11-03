@@ -4,7 +4,11 @@ import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import * as tables from "@/lib/db/schema";
-import { entitySchemas, type Entity } from "@/lib/crm/validation";
+import {
+  companyCreateInput,
+  entitySchemas,
+  type Entity,
+} from "@/lib/crm/validation";
 import { splitOpportunityValues } from "@/lib/crm/money";
 
 type Context = { params: Promise<{ entity: string }> };
@@ -41,7 +45,9 @@ async function mutate(request: Request, context: Context) {
         winProbability,
         lastInteraction,
         ...values
-      } = entitySchemas.companies.parse(body);
+      } = (
+        request.method === "POST" ? companyCreateInput : entitySchemas.companies
+      ).parse(body);
       if (request.method === "PATCH") {
         const updated = await db
           .update(tables.companies)
