@@ -1,3 +1,4 @@
+import { Toaster } from "@crm/notifications/toaster";
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, pageMetadata } from "@/lib/seo";
@@ -42,6 +43,7 @@ export default function RootLayout({
       <body className="relative z-0 font-sans antialiased">
         <ScrollToTop />
         {children}
+        <Toaster />
       </body>
     </html>
   );

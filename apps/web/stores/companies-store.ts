@@ -1,3 +1,4 @@
+import { toast } from "@crm/notifications/toast";
 import { create } from "zustand";
 import { type Company, type SortKey } from "@/data/companies";
 import type { CrmSnapshot } from "@/lib/crm/types";
@@ -199,8 +200,37 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
     }
   },
   mutate: async (entity, method, data) => {
+    const input =
+      data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+    // Capture names before refresh: a deleted record will no longer be in the store.
+    const existing = get()[entity].find((record) => record.id === input.id);
+    const record = { ...existing, ...input } as Record<string, unknown>;
+    const label = {
+      companies: "Client",
+      contacts: "Contact",
+      deals: "Project",
+      tasks: "Task",
+      activities: "Activity",
+    }[entity];
+    const name = String(
+      record.name || record.title || record.body || "",
+    ).trim();
+    const displayName = name.length > 120 ? `${name.slice(0, 117)}…` : name;
+    const client = get().companies.find(
+      (company) => company.id === record.companyId,
+    );
+    const context =
+      [displayName, client ? `Client: ${client.name}` : ""]
+        .filter(Boolean)
+        .join(" · ") || undefined;
+    const action =
+      method === "POST" ? "create" : method === "DELETE" ? "delete" : "update";
     if (get().accessState !== "allowed" || !get().canWrite) {
       set({ error: "Your role has read-only access." });
+      toast.error(
+        `Could not ${action} ${label.toLowerCase()}`,
+        "Your role has read-only access.",
+      );
       return false;
     }
     if (get().saving) return false;
@@ -219,7 +249,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
           get().blockAccess("denied", "Sign in to your workspace.");
         // A 403 may be a viewer role change or a revoked membership: check read access.
         if (response.status === 403) await get().checkAccess();
-        throw new Error(result.error);
+        throw new Error(result.error || "Could not save changes.");
       }
       await get().refresh();
       if (get().accessState !== "allowed") return false;
@@ -228,13 +258,30 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
           error:
             "Changes saved, but the list could not refresh. Click Retry to reload.",
         });
+      const outcome =
+        entity === "tasks" &&
+        method === "PATCH" &&
+        typeof input.completed === "boolean"
+          ? input.completed
+            ? "completed"
+            : "reopened"
+          : method === "POST"
+            ? "created"
+            : method === "DELETE"
+              ? "deleted"
+              : "updated";
+      toast.success(`${label} ${outcome}`, context);
       return true;
     } catch (error) {
-      if (epoch === get().accessEpoch)
-        set({
-          error:
-            error instanceof Error ? error.message : "Could not save changes.",
-        });
+      if (epoch === get().accessEpoch) {
+        const message =
+          error instanceof Error ? error.message : "Could not save changes.";
+        set({ error: message });
+        toast.error(
+          `Could not ${action} ${label.toLowerCase()}${name ? ` “${displayName}”` : ""}`,
+          message,
+        );
+      }
       return false;
     } finally {
       set({ saving: false });

@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@crm/notifications/toast";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ROLES } from "@/lib/access-policy";
 import type { AdminData } from "@/lib/admin-handlers";
@@ -8,7 +9,6 @@ import { selectClass } from "@/components/companies/crm-editor";
 export default function UserManagement() {
   const [data, setData] = useState<AdminData | null>(null);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/users", { cache: "no-store" });
@@ -21,10 +21,25 @@ export default function UserManagement() {
       .then(setData)
       .catch((e) => setError(e.message));
   }, [load]);
-  async function save(method: "POST" | "PATCH", body: unknown) {
+  async function save(method: "POST" | "PATCH", body: Record<string, unknown>) {
     setBusy(true);
     setError("");
-    setMessage("");
+    const recipient = String(
+      body.email ||
+        data?.users.find((user) => user.id === body.id)?.email ||
+        data?.invitations.find((invite) => invite.id === body.id)?.email ||
+        "teammate",
+    );
+    const action =
+      method === "POST"
+        ? "send invitation"
+        : body.action === "role"
+          ? "change role"
+          : body.action === "suspend"
+            ? "suspend access"
+            : body.action === "restore"
+              ? "restore access"
+              : "revoke invitation";
     try {
       const response = await fetch("/api/admin/users", {
         method,
@@ -33,19 +48,36 @@ export default function UserManagement() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
-      setMessage(
+      toast.success(
         method === "POST"
-          ? "Invitation sent. It expires in 7 days."
-          : "Access updated.",
+          ? "Invitation sent"
+          : body.action === "revoke-invitation"
+            ? "Invitation revoked"
+            : body.action === "role"
+              ? "Role changed"
+              : body.action === "suspend"
+                ? "Workspace access suspended"
+                : "Workspace access restored",
+        method === "POST"
+          ? `${recipient} · Expires in 7 days.`
+          : body.action === "role"
+            ? `${recipient} · New role: ${body.role}`
+            : recipient,
       );
       try {
         setData(await load());
       } catch {
         setError("Changes saved. Reload to see the latest users.");
+        toast.error(
+          "Changes saved, but users could not refresh. Use Reload users to try again.",
+        );
       }
       return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save changes.");
+      toast.error(
+        `Could not ${action} for ${recipient}`,
+        e instanceof Error ? e.message : "Try again.",
+      );
       return false;
     } finally {
       setBusy(false);
@@ -126,7 +158,7 @@ export default function UserManagement() {
         </div>
       )}
       <p role="status" className="text-subtle text-sm">
-        {busy ? "Saving…" : message}
+        {busy ? "Saving…" : ""}
       </p>
       {!data ? (
         <p role="status">

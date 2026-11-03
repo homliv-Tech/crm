@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@crm/notifications/toast";
 import { useEffect, useRef, useState } from "react";
 import {
   createQuotation,
@@ -104,7 +105,7 @@ export function useWorkspace(onImport: () => void) {
         throw new Error("Backup is too large (maximum 75 MB).");
       imported = parseWorkspace(await file.text());
     } catch {
-      setMessage(
+      toast.error(
         "Could not import the backup. Choose a valid Quotient JSON backup under 75 MB. Your existing drafts are unchanged.",
       );
       return;
@@ -119,7 +120,7 @@ export function useWorkspace(onImport: () => void) {
     try {
       localStorage.setItem(STORAGE_KEY, serialized);
     } catch {
-      setMessage(
+      toast.error(
         "Could not import the backup because browser storage is full or unavailable. Free up browser storage or try another browser profile. Your existing drafts are unchanged.",
       );
       return;
@@ -129,12 +130,19 @@ export function useWorkspace(onImport: () => void) {
     setBlocked(false);
     onImport();
     setSaveState("Saved in this browser");
-    setMessage("Backup imported successfully.");
+    toast.success(
+      "Quotation backup imported",
+      `${file.name} · ${imported.quotes.length} quotation(s) restored.`,
+    );
   }
 
   function backup() {
     downloadFile(
       JSON.stringify(workspace, null, 2),
+      `quotient-backup-${new Date().toISOString().slice(0, 10)}.json`,
+    );
+    toast.success(
+      "Quotation backup downloaded",
       `quotient-backup-${new Date().toISOString().slice(0, 10)}.json`,
     );
     if (blocked) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@crm/notifications/toast";
 import Link from "next/link";
 import {
   useEffect,
@@ -142,12 +143,14 @@ export default function CrmConnection({
             ),
           },
       );
-      setMessage(
-        "Saved to CRM. Further edits stay local until you save again.",
+      toast.success(
+        "Quotation saved to CRM",
+        `${quote.number} · Further edits stay local until you save again.`,
       );
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Could not save quotation.",
+      toast.error(
+        `Could not save quotation ${quote.number} to CRM`,
+        error instanceof Error ? error.message : "Try again.",
       );
     } finally {
       setBusy(false);

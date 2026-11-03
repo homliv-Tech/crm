@@ -1,3 +1,4 @@
+import { Toaster } from "@crm/notifications/toaster";
 import type { Metadata } from "next";
 import "./globals.css";
 import "./editor.css";
@@ -14,7 +15,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }

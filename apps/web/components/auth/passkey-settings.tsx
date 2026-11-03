@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@crm/notifications/toast";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   browserSupportsWebAuthn,
@@ -150,13 +151,14 @@ export default function PasskeySettings({ email }: { email: string }) {
         challengeId: result.challengeId,
         response,
       });
-      setMessage(
-        "Passkey added. You can use it with the passkey option on the login screen.",
+      toast.success(
+        "Passkey added",
+        `${email} · Use it to sign in with the passkey option.`,
       );
       try {
         setPasskeys(await load());
       } catch {
-        setError(
+        toast.error(
           "Passkey added, but the list could not refresh. Reload to see it.",
         );
       }
@@ -164,6 +166,8 @@ export default function PasskeySettings({ email }: { email: string }) {
   }
   function remove() {
     if (!removeTarget) return;
+    const passkeyNumber =
+      (passkeys?.findIndex((passkey) => passkey.id === removeTarget) ?? -1) + 1;
     void run(async () => {
       await request({
         action: "delete",
@@ -171,11 +175,16 @@ export default function PasskeySettings({ email }: { email: string }) {
         passkeyId: removeTarget,
       });
       setRemoveTarget(null);
-      setMessage("Passkey removed. You can still sign in with an email code.");
+      toast.success(
+        passkeyNumber > 0
+          ? `Passkey ${passkeyNumber} removed`
+          : "Passkey removed",
+        `${email} · Email-code sign-in is still available.`,
+      );
       try {
         setPasskeys(await load());
       } catch {
-        setError(
+        toast.error(
           "Passkey removed, but the list could not refresh. Reload to see the change.",
         );
       }

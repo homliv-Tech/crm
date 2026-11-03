@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@crm/notifications/toast";
 import { useState } from "react";
 import Button from "@/components/_ui/button";
 import FilterMenu from "@/components/_common/filter-menu";
@@ -38,7 +39,13 @@ export default function CompaniesToolbar() {
     setExporting(true);
     try {
       const blob = await useCompaniesStore.getState().exportCompanies();
-      if (!blob) return;
+      if (!blob) {
+        toast.error(
+          useCompaniesStore.getState().error ||
+            "Could not export clients. Try again.",
+        );
+        return;
+      }
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -47,6 +54,12 @@ export default function CompaniesToolbar() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+      toast.success(
+        "Client CSV downloaded",
+        `clients-${TODAY}.csv · Includes clients matching your current filters.`,
+      );
+    } catch {
+      toast.error("Could not download the client CSV. Try again.");
     } finally {
       setExporting(false);
     }
