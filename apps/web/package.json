@@ -45,7 +45,8 @@
     "swiper": "^12.0.2",
     "tailwind-merge": "^3.3.1",
     "zod": "^4.6.7",
-    "zustand": "^5.0.11"
+    "zustand": "^5.0.11",
+    "@crm/quotations": "workspace:*"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.14",

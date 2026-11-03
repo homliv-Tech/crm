@@ -1,4 +1,4 @@
-import type { Quotation } from "@/lib/quotation";
+import type { Quotation } from "../../lib/quotation";
 
 export type UpdateQuotation = (patch: Partial<Quotation>) => void;
 

@@ -1,4 +1,4 @@
-import { units, type LineItem } from "@/lib/quotation";
+import { units, type LineItem } from "../../lib/quotation";
 import Button from "../button";
 import { Field, Section } from "./fields";
 import type { EditorProps } from "./types";
@@ -9,7 +9,7 @@ export default function VariationRates({
   update,
 }: Omit<EditorProps, "errors">) {
   return (
-    <Section number="V" title="Rates for additional / changed work">
+    <Section title="Rates for additional / changed work">
       <p className="text-stone-500">
         Record agreed rates for future additions, such as furniture per sq ft or
         electrical work per point. These rates do not add to the current total.

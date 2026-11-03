@@ -15,6 +15,20 @@
       "when": 1793678786177,
       "tag": "0001_architecture_projects",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793713985366,
+      "tag": "0002_useful_kat_farrell",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793716238649,
+      "tag": "0003_parched_vertigo",
+      "breakpoints": true
     }
   ]
 }

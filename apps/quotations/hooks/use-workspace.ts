@@ -6,7 +6,7 @@ import {
   parseWorkspace,
   STORAGE_KEY,
   type Workspace,
-} from "@/lib/quotation";
+} from "../lib/quotation";
 
 function downloadFile(content: string, filename: string) {
   const url = URL.createObjectURL(

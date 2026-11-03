@@ -157,3 +157,72 @@ test("sales migration preserves relationships and archives sales details without
     await client.close();
   }
 });
+
+test("quotations preserve full documents, reject stale saves, and follow client deletion", async () => {
+  const { createQuotation } = await import("@crm/quotations/quotation");
+  const { and, sql } = await import("drizzle-orm");
+  const client = new PGlite();
+  try {
+    const db = drizzle(client);
+    await migrate(db, { migrationsFolder: "./drizzle" });
+    const [company] = await db
+      .insert(tables.companies)
+      .values({ name: "Quote client", owner: "Architect" })
+      .returning();
+    const document = createQuotation();
+    document.crm = { companyId: company.id, contactId: null, projectId: null };
+    document.to.name = company.name;
+    document.items[0].rate = "1234.56";
+    await db
+      .insert(tables.quotations)
+      .values({ id: document.id, companyId: company.id, document });
+    const [saved] = await db.select().from(tables.quotations);
+    assert.deepEqual(saved.document, document);
+    assert.equal(saved.version, 1);
+    assert.equal(
+      (
+        await db
+          .insert(tables.quotations)
+          .values({ id: document.id, companyId: company.id, document })
+          .onConflictDoNothing()
+          .returning()
+      ).length,
+      0,
+    );
+    const write = () =>
+      db
+        .update(tables.quotations)
+        .set({
+          version: sql`${tables.quotations.version} + 1`,
+          document: { ...document, status: "Sent" },
+        })
+        .where(
+          and(
+            eq(tables.quotations.id, document.id),
+            eq(tables.quotations.version, 1),
+          ),
+        )
+        .returning();
+    assert.equal((await write())[0].version, 2);
+    assert.equal((await write()).length, 0);
+    assert.equal(
+      (await db.select().from(tables.quotations))[0].document.status,
+      "Sent",
+    );
+    await assert.rejects(
+      db
+        .insert(tables.quotations)
+        .values({
+          id: crypto.randomUUID(),
+          companyId: crypto.randomUUID(),
+          document,
+        }),
+    );
+    await db
+      .delete(tables.companies)
+      .where(eq(tables.companies.id, company.id));
+    assert.equal((await db.select().from(tables.quotations)).length, 0);
+  } finally {
+    await client.close();
+  }
+});

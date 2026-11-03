@@ -1,5 +1,5 @@
 import { cloneElement, isValidElement, useId, type ReactNode } from "react";
-import type { Quotation } from "@/lib/quotation";
+import type { Quotation } from "../../lib/quotation";
 import type { UpdateQuotation } from "./types";
 
 type FieldProps = {
@@ -16,20 +16,26 @@ export function Field({ label, children, hint, error }: FieldProps) {
   }>(children)
     ? cloneElement(children, {
         "aria-invalid": error ? true : undefined,
-        "aria-describedby": error ? errorId : undefined,
+        "aria-describedby":
+          [error ? `${errorId}-error` : "", hint ? `${errorId}-hint` : ""]
+            .filter(Boolean)
+            .join(" ") || undefined,
       })
     : children;
   return (
-    <label className="block min-w-0 space-y-1.5">
-      <span className="block text-xs font-medium text-stone-600">{label}</span>
+    <label className="quote-field">
+      <span className="quote-field-label">{label}</span>
       {control}
       {error && (
-        <span id={errorId} className="block text-xs leading-5 text-red-700">
+        <span
+          id={`${errorId}-error`}
+          className="block text-xs leading-5 text-red-700"
+        >
           {error}
         </span>
       )}
       {hint && (
-        <span className="block text-[11px] leading-5 text-stone-500">
+        <span id={`${errorId}-hint`} className="quote-field-hint">
           {hint}
         </span>
       )}
@@ -37,22 +43,15 @@ export function Field({ label, children, hint, error }: FieldProps) {
   );
 }
 export function Section({
-  number,
   title,
   children,
 }: {
-  number: string;
   title: string;
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-5 rounded-xl border border-stone-200 bg-white p-5 sm:p-6">
-      <div className="flex items-center gap-3">
-        <span className="flex size-7 items-center justify-center rounded-full bg-stone-100 text-xs font-medium text-stone-500">
-          {number}
-        </span>
-        <h2>{title}</h2>
-      </div>
+    <section className="quote-form-section">
+      <h3>{title}</h3>
       {children}
     </section>
   );

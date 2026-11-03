@@ -47,3 +47,6 @@ next-env.d.ts
 **/.next/
 **/coverage/
 .turbo/
+
+# Local visual design inspections.
+.taste-skill/

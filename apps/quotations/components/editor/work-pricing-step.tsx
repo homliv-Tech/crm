@@ -8,12 +8,12 @@ import {
   type LineItem,
   type Workspace,
   type Totals,
-} from "@/lib/quotation";
+} from "../../lib/quotation";
 import {
   instantiateTemplate,
   packageItem,
   packageTemplates,
-} from "@/lib/package-templates";
+} from "../../lib/package-templates";
 import Button from "../button";
 import ItemDetailEditor from "../item-detail-editor";
 import { Field, Section } from "./fields";
@@ -47,10 +47,7 @@ export default function WorkPricingStep({
   return (
     <>
       {quote.revision && (
-        <Section
-          number="R"
-          title={`Revision of ${quote.revision.sourceNumber}`}
-        >
+        <Section title={`Revision of ${quote.revision.sourceNumber}`}>
           <p>
             The original final total of{" "}
             {money(quote.revision.originalTotal, quote.currency)} is carried
@@ -75,7 +72,6 @@ export default function WorkPricingStep({
         </Section>
       )}
       <Section
-        number="03"
         title={
           quote.revision
             ? "Additional work & packages"
@@ -212,7 +208,7 @@ export default function WorkPricingStep({
               <legend className="sr-only">Item {index + 1}</legend>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-stone-500">
-                  ITEM {String(index + 1).padStart(2, "0")}
+                  Work item {index + 1}
                 </span>
                 <Button
                   variant="ghost"

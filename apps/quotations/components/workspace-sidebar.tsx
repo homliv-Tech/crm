@@ -1,16 +1,17 @@
-import { useRef, useState } from "react";
-import type { Workspace } from "@/lib/quotation";
+import { useRef, useState, type ReactNode } from "react";
+import type { Workspace } from "../lib/quotation";
 import Button from "./button";
 
 type Props = {
+  settings: ReactNode;
   workspace: Workspace;
   onAddQuote: () => void;
   onSelectQuote: (id: string) => void;
   backup: () => void;
   importBackup: (file?: File) => Promise<void>;
 };
-
 export default function WorkspaceSidebar({
+  settings,
   workspace,
   onAddQuote,
   onSelectQuote,
@@ -26,104 +27,122 @@ export default function WorkspaceSidebar({
       .includes(query.toLowerCase()),
   );
   return (
-    <aside className="no-print border-b border-stone-200 bg-[#fbfcfa] p-5 lg:min-h-[calc(100vh-80px)] lg:border-r lg:border-b-0">
-      <Button
-        variant="secondary"
-        className="w-full justify-between lg:hidden"
+    <aside className="quote-sidebar no-print" aria-label="Quotation workspace">
+      <button
+        className="quote-mobile-menu"
+        type="button"
         aria-expanded={workspaceOpen}
         aria-controls="saved-workspace"
         onClick={() => setWorkspaceOpen(!workspaceOpen)}
       >
-        Saved quotations ({workspace.quotes.length}){" "}
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="16" height="16"><path d="M4 6h16M4 12h16M4 18h16" /></svg> Workspace & settings{" "}
         <span aria-hidden="true">{workspaceOpen ? "−" : "+"}</span>
-      </Button>
+      </button>
       <div
         id="saved-workspace"
-        className={`${workspaceOpen ? "mt-5 block" : "hidden"} lg:mt-0 lg:block`}
+        className={`quote-workspace-content ${workspaceOpen ? "is-open" : ""}`}
       >
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold tracking-wider text-stone-500 uppercase">
-            Your workspace
-          </span>
-          <span className="text-xs text-stone-500">
-            {workspace.quotes.length}/100
-          </span>
+        <div className="quote-sidebar-top">
+          <span>Quotations</span>
+          <Button
+            variant="secondary"
+            onClick={onAddQuote}
+            aria-label="New quotation"
+          >
+            + New
+          </Button>
         </div>
-        <Button variant="primary" className="mt-5 w-full" onClick={onAddQuote}>
-          <span aria-hidden="true" className="text-lg leading-none">
-            +
-          </span>{" "}
-          New quotation
-        </Button>
-        <label className="mt-5 block">
+        <label className="quote-search">
           <span className="sr-only">Search quotations</span>
           <input
             type="search"
             value={query}
-            placeholder="Search quotations…"
+            placeholder="Find a quotation…"
             onChange={(e) => setQuery(e.target.value)}
-            className="bg-white text-base sm:text-xs"
           />
         </label>
-        <nav
-          aria-label="Saved quotations"
-          className="mt-3 flex max-h-64 flex-col gap-1 overflow-y-auto lg:max-h-[calc(100vh-420px)]"
-        >
+        <nav aria-label="Saved quotations" className="quote-draft-list">
           {visibleQuotes.length ? (
             visibleQuotes.map((q) => (
-              <Button
+              <button
+                type="button"
                 key={q.id}
-                variant="ghost"
                 aria-current={q.id === workspace.activeId ? "page" : undefined}
                 onClick={() => {
                   onSelectQuote(q.id);
                   setWorkspaceOpen(false);
                 }}
-                className={`w-full justify-start p-3 text-left whitespace-normal ${q.id === workspace.activeId ? "border border-emerald-200 bg-emerald-50 text-emerald-900" : "border border-transparent"}`}
               >
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center justify-between gap-1">
-                    <span className="text-xs font-semibold break-all">
-                      {q.number || "Unnumbered"}
-                    </span>
-                    <span className="text-[10px] font-normal text-stone-600">
-                      {q.status}
-                    </span>
-                  </span>
-                  <span className="mt-1 block text-[11px] font-normal break-words text-stone-600">
-                    {q.to.name || "No client yet"}
-                  </span>
+                <span className="quote-draft-heading">
+                  <span>{q.number || "Unnumbered"}</span>
+                  <span>{q.status}</span>
                 </span>
-              </Button>
+                <span className="quote-draft-client">
+                  {q.to.name || "No client yet"}
+                </span>
+                {q.title && (
+                  <span className="quote-draft-project">{q.title}</span>
+                )}
+              </button>
             ))
           ) : (
-            <div className="px-3 py-5">
-              <p className="text-stone-600">No quotations match “{query}”.</p>
-              <Button
-                variant="secondary"
-                className="mt-3"
-                onClick={() => setQuery("")}
-              >
+            <div className="quote-search-empty">
+              <p>No matching quotations.</p>
+              <button type="button" onClick={() => setQuery("")}>
                 Clear search
-              </Button>
+              </button>
             </div>
           )}
         </nav>
-        <div className="mt-8 space-y-2 border-t border-stone-200 pt-5">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-xs"
-            onClick={backup}
-          >
-            ↓ Export workspace backup
-          </Button>
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-xs"
-            onClick={() => importInput.current?.click()}
-          >
-            ↑ Import backup
-          </Button>
+        <div className="quote-sidebar-utilities">
+          <details className="quote-settings">
+            <summary>
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              >
+                <path d="M4 7h16M4 17h16M9 4v6M15 14v6" />
+              </svg>
+              <span>Settings</span>
+              <span aria-hidden="true">⌄</span>
+            </summary>
+            <div className="quote-settings-body">{settings}</div>
+          </details>
+          <details className="quote-settings">
+            <summary>
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              >
+                <path d="M4 16v4h16v-4M12 4v11m-4-4 4 4 4-4" />
+              </svg>
+              <span>Backup & restore</span>
+              <span aria-hidden="true">⌄</span>
+            </summary>
+            <div className="quote-settings-body">
+              <Button variant="secondary" className="w-full" onClick={backup}>
+                Export workspace
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => importInput.current?.click()}
+              >
+                Import backup
+              </Button>
+              <p>
+                Export a backup before clearing browser data or moving devices.
+              </p>
+            </div>
+          </details>
           <input
             ref={importInput}
             type="file"
@@ -135,9 +154,8 @@ export default function WorkspaceSidebar({
               e.target.value = "";
             }}
           />
-          <p className="px-3 pt-2 text-xs text-stone-500">
-            Drafts stay in this browser. Export a backup before clearing browser
-            data or moving devices.
+          <p className="quote-sidebar-note">
+            Private drafts, saved on this device.
           </p>
         </div>
       </div>

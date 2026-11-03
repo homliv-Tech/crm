@@ -23,7 +23,7 @@ export const getAccess = cache(async () => {
       organizationId: process.env.WORKOS_ORGANIZATION_ID!,
     });
     if (access.status !== 200) return access;
-    return { ...access, user };
+    return { ...access, user, sessionId };
   } catch {
     return {
       status: 503 as const,
