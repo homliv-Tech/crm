@@ -17,6 +17,7 @@ import {
 } from "../lib/crm-bridge";
 import CrmConnection from "./crm-connection";
 import Button from "./button";
+import { CrmRequestError } from "../lib/crm";
 
 type Props = Omit<
   ComponentProps<typeof CrmConnection>,
@@ -125,7 +126,10 @@ export default function OptionalCrm({ crmUrl, signInHref, ...props }: Props) {
           "Your CRM connection has ended. Sign in again to reconnect.",
         );
       }
-      throw new Error(data.error || "CRM request failed.");
+      throw new CrmRequestError(
+        data.error || "CRM request failed.",
+        response.status,
+      );
     }
     return data;
   }, []);
