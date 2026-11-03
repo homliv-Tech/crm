@@ -5,9 +5,11 @@ import Link from "next/link";
 import { calculate, money, type Quotation } from "@crm/quotations/quotation";
 import QuotationContextMenu from "@crm/quotations/context-menu";
 import { resetStoredQuotationCrmVersion } from "@crm/quotations/workspace";
+import { useCompaniesStore } from "@/stores/companies-store";
 
 type SavedQuotation = { id: string; document: Quotation; updatedAt: string };
 export default function ClientQuotations({ companyId }: { companyId: string }) {
+  const canWrite = useCompaniesStore((state) => state.canWrite);
   const [quotes, setQuotes] = useState<SavedQuotation[]>([]);
   const [status, setStatus] = useState("Loading quotations…");
   const [attempt, setAttempt] = useState(0);
@@ -42,6 +44,7 @@ export default function ClientQuotations({ companyId }: { companyId: string }) {
   }, [companyId, attempt]);
 
   async function remove(id: string, number: string) {
+    if (!useCompaniesStore.getState().canWrite) return;
     if (
       !window.confirm(
         `Delete ${number || "this quotation"} from CRM? This cannot be undone. Any browser drafts will remain.`,
@@ -91,12 +94,16 @@ export default function ClientQuotations({ companyId }: { companyId: string }) {
       {quotes.map(({ id, document: q, updatedAt }) => (
         <QuotationContextMenu
           key={id}
-          actions={[
-            {
-              label: "Delete from CRM",
-              onSelect: () => void remove(id, q.number),
-            },
-          ]}
+          actions={
+            canWrite
+              ? [
+                  {
+                    label: "Delete from CRM",
+                    onSelect: () => void remove(id, q.number),
+                  },
+                ]
+              : []
+          }
         >
           <Link
             key={id}

@@ -12,6 +12,7 @@ export default function QuotationContextMenu({
   actions: { label: string; onSelect: () => void; disabled?: boolean }[];
   disabled?: boolean;
 }) {
+  if (!actions.length) return children;
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger
