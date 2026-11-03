@@ -1,0 +1,17 @@
+{
+  "name": "@crm/notifications",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./toast": "./toast.ts",
+    "./toaster": "./toaster.tsx"
+  },
+  "dependencies": {
+    "sonner": "^2.0.8"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

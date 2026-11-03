@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@crm/notifications/toast";
 import { useCallback, useRef, useState } from "react";
 import QuotationSummary from "./quotation-summary";
 import OptionalCrm from "./optional-crm";
@@ -191,6 +192,10 @@ export default function QuotationApp({
     setErrors([]);
     setView("edit");
     setStep(0);
+    toast.success(
+      copy ? "Quotation duplicated" : "Quotation created",
+      copy ? `${current.number} copied to ${next.number}` : next.number,
+    );
   }
   function saveTemplate(item: LineItem) {
     if (!item.name.trim()) {
@@ -206,8 +211,9 @@ export default function QuotationApp({
     }
     const template = saveableTemplate(item);
     setWorkspace({ ...currentWorkspace, templates: [...templates, template] });
-    setMessage(
-      "Firm template saved. Reuse it from the package menu; enter a fresh price and project-specific changes each time.",
+    toast.success(
+      "Work template saved",
+      `${item.name} · Available in the package menu.`,
     );
   }
   function reviseQuote() {
@@ -227,10 +233,15 @@ export default function QuotationApp({
       setErrors([]);
       setView("edit");
       setStep(1);
+      toast.success(
+        "Quotation revision created",
+        `${next.number} · Based on ${current.number}`,
+      );
     } catch (error) {
-      setErrors([
-        error instanceof Error ? error.message : "Could not create a revision.",
-      ]);
+      toast.error(
+        `Could not revise quotation ${current.number}`,
+        error instanceof Error ? error.message : "Try again.",
+      );
     }
   }
   function removeQuote() {
@@ -251,6 +262,10 @@ export default function QuotationApp({
       activeId: remaining[0].id,
     });
     setErrors([]);
+    toast.success(
+      "Local quotation draft deleted",
+      `${current.number}${crmEnabled || current.crmVersion > 0 ? " · Any saved CRM copy is unchanged." : ""}`,
+    );
   }
   async function exportPdf() {
     const issues = exportErrors(current);
@@ -263,14 +278,11 @@ export default function QuotationApp({
         current,
         prepared?.key === JSON.stringify(current) ? prepared.blob : undefined,
       );
-      setMessage(
-        "PDF downloaded. You can now attach it to an email or share it with your client.",
-      );
+      toast.success("Quotation PDF downloaded", current.number);
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? `PDF export failed: ${error.message}`
-          : "PDF export failed. Try again or use Print.",
+      toast.error(
+        `Could not export PDF for ${current.number}`,
+        error instanceof Error ? error.message : "Try again or use Print.",
       );
     } finally {
       setExporting(false);
@@ -596,7 +608,8 @@ export default function QuotationApp({
                           : undefined,
                       );
                     } catch (error) {
-                      setMessage(
+                      toast.error(
+                        `Could not open PDF for ${quote.number}`,
                         error instanceof Error
                           ? error.message
                           : "Could not open the PDF. Download it to print.",

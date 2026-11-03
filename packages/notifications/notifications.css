@@ -1,0 +1,87 @@
+.crm-toaster[data-sonner-toaster][data-sonner-theme] {
+  font-family: var(--font-geist, inherit);
+  --normal-bg: var(--popover, #161616);
+  --normal-text: var(--foreground, #f9fbff);
+  --normal-border: var(--line-strong, #393939);
+  --border-radius: calc(var(--radius, 0.5rem) + 4px);
+}
+
+.crm-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
+  padding: 16px;
+  padding-inline-end: 52px;
+  gap: 12px;
+  font-size: 14px;
+  box-shadow: var(
+    --shadow-overlay,
+    0 16px 40px rgb(0 0 0 / 0.5),
+    0 0 0 1px #0e0e0e
+  );
+}
+
+.crm-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-description] {
+  color: var(--soft, #a4a4a4);
+}
+
+.crm-toaster[data-sonner-toaster] [data-sonner-toast] [data-icon] {
+  flex-shrink: 0;
+  color: var(--icon, #d0d4dd);
+}
+
+.crm-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-type="success"]
+  [data-icon] {
+  color: var(--success, #22c55e);
+}
+
+.crm-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-type="error"]
+  [data-icon] {
+  color: var(--danger, #f97373);
+}
+
+.crm-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-close-button] {
+  top: 10px;
+  inset-inline-start: auto;
+  inset-inline-end: 10px;
+  width: 30px;
+  height: 30px;
+  transform: none;
+  border: 0;
+  background: transparent;
+  color: var(--soft, #a4a4a4);
+  transition:
+    background-color 150ms,
+    color 150ms;
+}
+
+@media (hover: hover) {
+  .crm-toaster[data-sonner-toaster]
+    [data-sonner-toast][data-styled="true"]
+    [data-close-button]:hover {
+    background: var(--muted, #2a2a2a);
+    color: var(--foreground, #f9fbff);
+  }
+}
+
+.crm-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-close-button]:focus-visible {
+  outline: 2px solid var(--ring, #676767);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crm-toaster[data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+    transition: none;
+  }
+}
+
+@media print {
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+}
