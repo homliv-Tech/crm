@@ -274,7 +274,7 @@ export default function QuotationApp({
     setErrors([]);
     toast.success(
       "Local quotation draft deleted",
-      `${current.number}${crmEnabled || current.crmVersion > 0 ? " · Any saved CRM copy is unchanged." : ""}`,
+      `${target.number}${crmEnabled || target.crmVersion > 0 ? " · Any saved CRM copy is unchanged." : ""}`,
     );
   }
   async function exportPdf() {
