@@ -14,6 +14,8 @@ function set(name: string, value: string) {
 if (!values.DATABASE_URL) set("DATABASE_URL", "");
 if ((values.WORKOS_COOKIE_PASSWORD?.length ?? 0) < 32)
   set("WORKOS_COOKIE_PASSWORD", randomBytes(48).toString("base64url"));
+if ((values.LANDING_ENQUIRY_SECRET?.length ?? 0) < 32)
+  set("LANDING_ENQUIRY_SECRET", randomBytes(48).toString("base64url"));
 for (const name of [
   "WORKOS_API_KEY",
   "WORKOS_CLIENT_ID",
@@ -25,5 +27,5 @@ if (!values.NEXT_PUBLIC_WORKOS_REDIRECT_URI)
 writeFileSync(path, text);
 chmodSync(path, 0o600);
 console.log(
-  "Saved .env.local with a private WorkOS cookie password. Set DATABASE_URL and your WorkOS API key, client ID, and organization ID. See README.md for WorkOS setup.",
+  "Saved .env.local with a private WorkOS cookie password and LANDING_ENQUIRY_SECRET. Existing valid secrets were preserved. Use the same enquiry secret as CRM_ENQUIRY_SECRET on the landing server. Set DATABASE_URL and your WorkOS API key, client ID, and organization ID. See README.md for setup.",
 );

@@ -2,14 +2,21 @@
 
 ## CRM deployment
 
-Apply the migration with `bun run db:migrate` from the CRM repository root using
-the deployment's `DATABASE_URL`. Set server-only `LANDING_ENQUIRY_SECRET` to a
-random secret of at least 32 characters in the deployment's secret manager.
+Run `bun run setup` from the CRM repository root to generate `LANDING_ENQUIRY_SECRET`
+in `apps/web/.env.local` without printing it. Setup preserves existing secrets of
+at least 32 characters and replaces missing or shorter values. Apply the migration
+with `bun run db:migrate` using the deployment's `DATABASE_URL`. Copy the generated
+server-only `LANDING_ENQUIRY_SECRET` into the deployment's secret manager.
 Use the identical secret for `CRM_ENQUIRY_SECRET` on the landing server.
 Never expose these through `NEXT_PUBLIC_` variables. An unset or short CRM secret
 disables imports with HTTP 503. Deploy the CRM before enabling landing delivery.
 
-No production migration or credential configuration was performed by this change.
+The landing site can use the same PostgreSQL database as CRM. Its `enquiries` and
+`enquiry_quota` tables hold submissions and delivery state; CRM clients still enter
+through this endpoint. Before the first landing migration in the shared database,
+set `DATABASE_MIGRATIONS_SCHEMA=landing_migrations` on the landing server and migration
+jobs. This keeps its journal separate from CRM's default `drizzle` journal. Do not
+change journal schemas for an already migrated database without reconciling history.
 
 ## Contract
 
@@ -84,7 +91,10 @@ Content-Type: application/json
 Both environment variables are server-only; add placeholders to .env.example.
 The URL includes /api/integrations/enquiries. The secret matches CRM's
 LANDING_ENQUIRY_SECRET and must have at least 32 characters. Never expose or print
-it. Do not give this project CRM database credentials or weaken authentication.
+it. The landing site may share CRM's PostgreSQL database. In that case configure
+DATABASE_URL for that database and DATABASE_MIGRATIONS_SCHEMA=landing_migrations
+before the first landing migration, keeping both applications' journals separate.
+Do not weaken endpoint authentication. Use the endpoint for client creation.
 
 Send JSON with the saved enquiry's id, name, email, phone, address, apartmentType,
 budget, message and createdAt (ISO timestamp from the saved row). Preserve the
