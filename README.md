@@ -56,7 +56,7 @@ bun run setup
 
 Open `apps/web/.env.local`. Set `DATABASE_URL` to your Neon **primary read/write** connection string with `sslmode=require`. A read replica cannot run migrations or save CRM records. The database role must be allowed to create schemas, tables, indexes, and enum types.
 
-`bun run setup` creates a private `.env.local` and generates `WORKOS_COOKIE_PASSWORD` without printing it. Fill in the WorkOS values from `apps/web/.env.example` before signing in. No shared workspace password is accepted.
+`bun run setup` creates a private `.env.local` and generates `WORKOS_COOKIE_PASSWORD` and `LANDING_ENQUIRY_SECRET` without printing them. Existing secrets of at least 32 characters are preserved; missing or shorter values are replaced. Use the enquiry secret as `CRM_ENQUIRY_SECRET` on the landing server. Fill in the WorkOS values from `apps/web/.env.example` before signing in. No shared workspace password is accepted.
 
 ### Configure WorkOS
 
