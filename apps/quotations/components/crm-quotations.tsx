@@ -2,11 +2,13 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { flushSync } from "react-dom";
 import {
   crmRequest,
   deleteCrmQuotation,
@@ -43,7 +45,7 @@ export default function CrmQuotations({
   const [message, setMessage] = useState("");
   const latest = useRef(workspace);
   const mounted = useRef(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     latest.current = workspace;
   }, [workspace]);
   useEffect(() => {
@@ -86,17 +88,25 @@ export default function CrmQuotations({
       );
       if (!mounted.current) return;
       // Validate capacity and the document before entering the state updater.
-      openCrmQuotation(latest.current, result.quotations[0]);
-      setWorkspace((previous) => {
-        if (!previous) return previous;
-        // Another action may have filled the workspace while this update queued.
-        if (
-          previous.quotes.length >= 100 &&
-          !previous.quotes.some((q) => q.id === id)
-        )
-          return previous;
-        return openCrmQuotation(previous, result.quotations[0]);
+      const selected = openCrmQuotation(latest.current, result.quotations[0]);
+      // Commit before reporting the result, including any queued workspace edits.
+      flushSync(() => {
+        setWorkspace((previous) => {
+          if (!previous) return previous;
+          if (
+            previous.quotes.length >= 100 &&
+            !previous.quotes.some((q) => q.id === id)
+          )
+            return previous;
+          return openCrmQuotation(previous, result.quotations[0]);
+        });
       });
+      if (!mounted.current) return;
+      if (latest.current.activeId !== selected.activeId) {
+        // Re-check committed capacity so a refused open reaches the error path.
+        openCrmQuotation(latest.current, result.quotations[0]);
+        throw new Error("Could not open quotation. Try again.");
+      }
       setMessage("Quotation opened. Newer local edits are preserved.");
     } catch (error) {
       if (mounted.current)
