@@ -13,6 +13,10 @@ Open http://localhost:3001. `bun run dev` runs both apps; `bun run start:quotati
 
 # Studio CRM
 
+Landing-page enquiries can create CRM clients through the authenticated
+[enquiry integration](docs/landing-enquiry-integration.md). The guide includes
+deployment steps, the API contract, and a prompt for the landing-site project.
+
 A client and project workspace for architecture firms, built with Next.js 16, Neon Postgres, and Drizzle ORM.
 
 - Clients: individual homeowners or organizations, client types, relationship status, lead architects, search, filters, and CSV export.

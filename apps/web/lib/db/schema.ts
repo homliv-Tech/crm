@@ -67,6 +67,26 @@ export const contacts = pgTable(
   (t) => [index("contacts_company_idx").on(t.companyId)],
 );
 
+// The landing site's enquiry UUID is the delivery idempotency key.
+export const landingEnquiries = pgTable("landing_enquiries", {
+  id: uuid("id").primaryKey(),
+  companyId: uuid("company_id")
+    .notNull()
+    .unique()
+    .references(() => companies.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
+  address: text("address").notNull(),
+  apartmentType: text("apartment_type").notNull(),
+  budget: text("budget").notNull(),
+  message: text("message").notNull().default(""),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull(),
+  receivedAt: timestamp("received_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const deals = pgTable(
   "deals",
   {
