@@ -24,6 +24,7 @@
     "start:quotations": "bun run --filter @crm/quotations start"
   },
   "devDependencies": {
+    "@pruven/zeke": "^0.1.2",
     "turbo": "^2.5.0"
   }
 }

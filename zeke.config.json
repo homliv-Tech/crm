@@ -1,0 +1,10 @@
+{
+  "source": "main-worktree",
+  "copy": [
+    "**/.env",
+    "**/.env.*"
+  ],
+  "exclude": [
+    "**/.env.example"
+  ]
+}
