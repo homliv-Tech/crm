@@ -13,6 +13,8 @@ import {
   check,
   pgEnum,
   uuid,
+  unique,
+  foreignKey,
 } from "drizzle-orm/pg-core";
 
 export const dealStage = pgEnum("deal_stage", PROJECT_PHASES);
@@ -62,9 +64,20 @@ export const contacts = pgTable(
     email: text("email").notNull().default(""),
     phone: text("phone").notNull().default(""),
     role: text("role").notNull().default(""),
+    projectId: uuid("project_id").references(() => deals.id, {
+      onDelete: "set null",
+    }),
     ...timestamps,
   },
-  (t) => [index("contacts_company_idx").on(t.companyId)],
+  (t) => [
+    index("contacts_project_idx").on(t.projectId),
+    foreignKey({
+      columns: [t.projectId, t.companyId],
+      foreignColumns: [deals.id, deals.companyId],
+      name: "contacts_project_client_fk",
+    }),
+    index("contacts_company_idx").on(t.companyId),
+  ],
 );
 
 // The landing site's enquiry UUID is the delivery idempotency key.
@@ -105,6 +118,7 @@ export const deals = pgTable(
     ...timestamps,
   },
   (t) => [
+    unique("deals_id_company_unique").on(t.id, t.companyId),
     index("deals_company_idx").on(t.companyId),
     index("deals_stage_idx").on(t.stage),
     check("deal_value_positive", sql`${t.value} >= 0`),
@@ -123,9 +137,18 @@ export const tasks = pgTable(
     owner: text("owner").notNull(),
     dueDate: date("due_date").notNull(),
     completed: boolean("completed").notNull().default(false),
+    projectId: uuid("project_id").references(() => deals.id, {
+      onDelete: "set null",
+    }),
     ...timestamps,
   },
   (t) => [
+    index("tasks_project_idx").on(t.projectId),
+    foreignKey({
+      columns: [t.projectId, t.companyId],
+      foreignColumns: [deals.id, deals.companyId],
+      name: "tasks_project_client_fk",
+    }),
     index("tasks_company_idx").on(t.companyId),
     index("tasks_due_idx").on(t.completed, t.dueDate),
   ],
@@ -143,9 +166,20 @@ export const activities = pgTable(
     occurredAt: timestamp("occurred_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
+    projectId: uuid("project_id").references(() => deals.id, {
+      onDelete: "set null",
+    }),
     ...timestamps,
   },
-  (t) => [index("activities_company_date_idx").on(t.companyId, t.occurredAt)],
+  (t) => [
+    index("activities_project_idx").on(t.projectId),
+    foreignKey({
+      columns: [t.projectId, t.companyId],
+      foreignColumns: [deals.id, deals.companyId],
+      name: "activities_project_client_fk",
+    }),
+    index("activities_company_date_idx").on(t.companyId, t.occurredAt),
+  ],
 );
 
 // The full validated document preserves pricing, terms and client details as quoted.
@@ -181,3 +215,29 @@ export const quotationConnections = pgTable("quotation_connections", {
     .defaultNow()
     .notNull(),
 });
+
+// Store document links with the studio's chosen storage provider.
+export const projectFiles = pgTable(
+  "project_files",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => deals.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    url: text("url").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    index("project_files_company_idx").on(t.companyId),
+    index("project_files_project_idx").on(t.projectId),
+    foreignKey({
+      columns: [t.projectId, t.companyId],
+      foreignColumns: [deals.id, deals.companyId],
+      name: "project_files_project_client_fk",
+    }),
+  ],
+);

@@ -9,9 +9,13 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { clientPatch, crmRequest, type CrmData } from "../lib/crm";
 import {
-  createQuotation,
+  clientPatch,
+  createClientQuote,
+  crmRequest,
+  type CrmData,
+} from "../lib/crm";
+import {
   quotationSchema,
   type Quotation,
   type Workspace,
@@ -97,8 +101,12 @@ export default function CrmConnection({
           const companyId = params.get("companyId");
           if (!companyId) return previous;
           // Start a separate draft so opening a client cannot overwrite another client's work.
-          const fresh = createClientQuote(previous, snapshot, companyId);
-          return fresh;
+          return createClientQuote(
+            previous,
+            snapshot,
+            companyId,
+            params.get("projectId"),
+          );
         });
         window.history.replaceState(null, "", window.location.pathname);
         setMessage(
@@ -296,25 +304,4 @@ export default function CrmConnection({
       )}
     </section>
   );
-}
-
-function createClientQuote(
-  workspace: Workspace,
-  data: CrmData,
-  companyId: string,
-): Workspace {
-  if (
-    !data.companies.some((c) => c.id === companyId) ||
-    workspace.quotes.length >= 100
-  )
-    return workspace;
-  const quote = {
-    ...createQuotation(workspace.quotes),
-    ...clientPatch(data, companyId),
-  };
-  return {
-    ...workspace,
-    activeId: quote.id,
-    quotes: [quote, ...workspace.quotes],
-  };
 }

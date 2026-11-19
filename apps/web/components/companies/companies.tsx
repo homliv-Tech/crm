@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useCompaniesStore } from "@/stores/companies-store";
 import Button from "@/components/_ui/button";
+import ProjectWorkspace from "./project-workspace";
 import CrmViews from "./crm-views";
 import { CrmEditorProvider } from "./crm-editor";
 import CompaniesHeader from "./header/header";
@@ -15,6 +16,7 @@ import CommandMenu from "./command-menu/command-menu";
 
 export default function Companies() {
   const canWrite = useCompaniesStore((s) => s.canWrite);
+  const projectId = useCompaniesStore((s) => s.projectId);
   const tab = useCompaniesStore((s) => s.activeTab);
   const error = useCompaniesStore((s) => s.error);
   const loading = useCompaniesStore((s) => s.loading);
@@ -45,6 +47,8 @@ export default function Companies() {
           <p role="status" className="text-subtle p-8 text-sm">
             Loading your workspace…
           </p>
+        ) : projectId && tab === "deals" ? (
+          <ProjectWorkspace key={projectId} projectId={projectId} />
         ) : tab === "companies" ? (
           <>
             <CompaniesToolbar />

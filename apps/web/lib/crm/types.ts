@@ -3,6 +3,7 @@ import type { Company } from "@/data/companies";
 
 export type CrmCompany = Company & { website: string; description: string };
 export type Contact = {
+  projectId?: string | null;
   id: string;
   companyId: string;
   name: string;
@@ -23,6 +24,7 @@ export type Deal = {
   closeDate: string | null;
 };
 export type Task = {
+  projectId?: string | null;
   id: string;
   companyId: string;
   title: string;
@@ -31,13 +33,22 @@ export type Task = {
   completed: boolean;
 };
 export type Activity = {
+  projectId?: string | null;
   id: string;
   companyId: string;
   type: "Note" | "Call" | "Email" | "Meeting";
   body: string;
   occurredAt: string;
 };
+export type ProjectFile = {
+  id: string;
+  companyId: string;
+  projectId: string;
+  title: string;
+  url: string;
+};
 export type CrmSnapshot = {
+  projectFiles: ProjectFile[];
   companies: CrmCompany[];
   contacts: Contact[];
   deals: Deal[];

@@ -20,6 +20,8 @@ export default function CrmViews() {
   const tab = state.activeTab;
   const companyName = (id: string) =>
     state.companies.find((c) => c.id === id)?.name ?? "Unknown client";
+  const projectName = (id?: string | null) =>
+    state.deals.find((p) => p.id === id)?.title;
   const match = (item: { companyId: string }, text: string) =>
     (!companyId || item.companyId === companyId) &&
     `${text} ${companyName(item.companyId)}`
@@ -100,11 +102,8 @@ export default function CrmViews() {
                       className="border-border bg-background rounded-lg border p-3"
                     >
                       <button
-                        disabled={!state.canWrite}
                         className="mb-2 text-left text-sm font-medium hover:underline"
-                        onClick={() =>
-                          edit({ entity: "deals", record: { ...deal } })
-                        }
+                        onClick={() => state.openProject(deal.id)}
                       >
                         {deal.title}
                       </button>
@@ -168,7 +167,12 @@ export default function CrmViews() {
                 .map((c) => (
                   <tr key={c.id} className="border-border border-b">
                     <td className="p-3">{c.name}</td>
-                    <td className="p-3">{companyName(c.companyId)}</td>
+                    <td className="p-3">
+                      {companyName(c.companyId)}
+                      <span className="text-subtle mt-1 block text-xs">
+                        {projectName(c.projectId) || "Client only"}
+                      </span>
+                    </td>
                     <td className="p-3">
                       {c.email ? (
                         <a className="underline" href={`mailto:${c.email}`}>
@@ -237,7 +241,8 @@ export default function CrmViews() {
                 <div className="min-w-0 flex-1">
                   <p className={t.completed ? "line-through" : ""}>{t.title}</p>
                   <p className="text-subtle mt-1 text-xs">
-                    {companyName(t.companyId)} · {t.owner}
+                    {companyName(t.companyId)} ·{" "}
+                    {projectName(t.projectId) || "Client only"} · {t.owner}
                   </p>
                   <p
                     className={`mt-1 text-xs ${!t.completed && t.dueDate < new Date().toISOString().slice(0, 10) ? "text-red-400" : "text-subtle"}`}
@@ -273,7 +278,8 @@ export default function CrmViews() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-medium">
-                    {a.type} · {companyName(a.companyId)}
+                    {a.type} · {companyName(a.companyId)} ·{" "}
+                    {projectName(a.projectId) || "Client only"}
                   </span>
                   <Button
                     disabled={!state.canWrite}

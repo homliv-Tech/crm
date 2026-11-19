@@ -8,7 +8,13 @@ import { resetStoredQuotationCrmVersion } from "@crm/quotations/workspace";
 import { useCompaniesStore } from "@/stores/companies-store";
 
 type SavedQuotation = { id: string; document: Quotation; updatedAt: string };
-export default function ClientQuotations({ companyId }: { companyId: string }) {
+export default function ClientQuotations({
+  companyId,
+  projectId,
+}: {
+  companyId: string;
+  projectId?: string;
+}) {
   const canWrite = useCompaniesStore((state) => state.canWrite);
   const [quotes, setQuotes] = useState<SavedQuotation[]>([]);
   const [status, setStatus] = useState("Loading quotations…");
@@ -18,7 +24,7 @@ export default function ClientQuotations({ companyId }: { companyId: string }) {
     async function load() {
       try {
         const response = await fetch(
-          `/api/quotations?companyId=${encodeURIComponent(companyId)}`,
+          `/api/quotations?companyId=${encodeURIComponent(companyId)}${projectId ? `&projectId=${encodeURIComponent(projectId)}` : ""}`,
           { cache: "no-store", signal: controller.signal },
         );
         const result = await response.json();
@@ -26,9 +32,7 @@ export default function ClientQuotations({ companyId }: { companyId: string }) {
           throw new Error(result.error || "Could not load quotations.");
         setQuotes(result.quotations);
         setStatus(
-          result.quotations.length
-            ? ""
-            : "No quotations saved for this client yet.",
+          result.quotations.length ? "" : "No quotations saved here yet.",
         );
       } catch (error) {
         if (!controller.signal.aborted)
@@ -41,7 +45,7 @@ export default function ClientQuotations({ companyId }: { companyId: string }) {
     }
     void load();
     return () => controller.abort();
-  }, [companyId, attempt]);
+  }, [companyId, projectId, attempt]);
 
   async function remove(id: string, number: string) {
     if (!useCompaniesStore.getState().canWrite) return;
@@ -79,12 +83,14 @@ export default function ClientQuotations({ companyId }: { companyId: string }) {
     <section className="mb-6">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-base">Quotations</h2>
-        <Link
-          className="text-sm underline"
-          href={`/quotations?companyId=${encodeURIComponent(companyId)}`}
-        >
-          Create quotation
-        </Link>
+        {canWrite && (
+          <Link
+            className="text-sm underline"
+            href={`/quotations?companyId=${encodeURIComponent(companyId)}${projectId ? `&projectId=${encodeURIComponent(projectId)}` : ""}`}
+          >
+            Create quotation
+          </Link>
+        )}
       </div>
       {status && (
         <p role="status" className="text-subtle text-sm">

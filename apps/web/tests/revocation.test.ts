@@ -16,6 +16,7 @@ const snapshot = {
   deals: [],
   tasks: [],
   activities: [],
+  projectFiles: [],
 };
 function seed() {
   useCompaniesStore.setState(useCompaniesStore.getInitialState(), true);
@@ -24,6 +25,16 @@ function seed() {
     accessState: "allowed",
     canWrite: true,
     loading: false,
+    projectId: "project-to-clear",
+    projectFiles: [
+      {
+        id: "file",
+        projectId: "project-to-clear",
+        companyId: snapshot.companies[0].id,
+        title: "Drawing",
+        url: "https://example.com/drawing",
+      },
+    ],
     detailId: snapshot.companies[0].id,
     detailOpen: true,
     profileName: "Owner",
@@ -41,6 +52,7 @@ function assertCleared() {
     "deals",
     "tasks",
     "activities",
+    "projectFiles",
     "selectedIds",
   ] as const)
     assert.deepEqual(state[key], []);
@@ -53,6 +65,7 @@ function assertCleared() {
   ] as const)
     assert.equal(state[key], false);
   assert.equal(state.detailId, null);
+  assert.equal(state.projectId, null);
   assert.equal(state.profileName, null);
 }
 afterEach(() => {

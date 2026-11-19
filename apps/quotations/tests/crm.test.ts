@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { clientPatch, type CrmData } from "../lib/crm";
+import { clientPatch, createClientQuote, type CrmData } from "../lib/crm";
 import {
   createQuotation,
   createRevision,
@@ -60,4 +60,49 @@ test("old backups remain valid and revisions keep the client link with a fresh s
   assert.deepEqual(revision.crm, q.crm);
   assert.equal(revision.crmVersion, 0);
   assert.notEqual(revision.id, q.id);
+});
+
+test("project entry creates a separate prefilled draft and respects ownership and capacity", () => {
+  const existing = createQuotation();
+  const workspace = {
+    version: 1 as const,
+    activeId: existing.id,
+    quotes: [existing],
+  };
+  const project = {
+    id: crypto.randomUUID(),
+    companyId,
+    title: "Courtyard home",
+    siteAddress: "14 Garden Road",
+    brief: "Retain courtyard",
+  };
+  const snapshot = {
+    ...data,
+    deals: [
+      project,
+      { ...project, id: "foreign-project", companyId: "other-client" },
+    ],
+  };
+  const next = createClientQuote(workspace, snapshot, companyId, project.id);
+  assert.equal(next.quotes.length, 2);
+  assert.equal(next.quotes[1], existing);
+  assert.notEqual(next.activeId, existing.id);
+  assert.equal(next.quotes[0].crm?.projectId, project.id);
+  assert.equal(next.quotes[0].title, project.title);
+  assert.equal(next.quotes[0].siteAddress, project.siteAddress);
+  assert.equal(next.quotes[0].scope, project.brief);
+  assert.equal(
+    createClientQuote(workspace, snapshot, companyId, "foreign-project")
+      .quotes[0].crm?.projectId,
+    null,
+  );
+  const full = {
+    ...workspace,
+    quotes: Array.from({ length: 100 }, () => createQuotation()),
+  };
+  assert.equal(createClientQuote(full, snapshot, companyId, project.id), full);
+  assert.equal(
+    createClientQuote(workspace, snapshot, "missing", project.id),
+    workspace,
+  );
 });

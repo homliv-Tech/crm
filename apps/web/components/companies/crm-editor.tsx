@@ -23,10 +23,16 @@ import type { Entity } from "@/lib/crm/validation";
 import { useCompaniesStore } from "@/stores/companies-store";
 
 type RecordData = Record<string, unknown>;
-type Editor = { entity: Entity; record?: RecordData; companyId?: string };
+type Editor = {
+  entity: Entity;
+  record?: RecordData;
+  companyId?: string;
+  projectId?: string;
+};
 const EditorContext = createContext<(editor: Editor) => void>(() => {});
 export const useCrmEditor = () => useContext(EditorContext);
 const labels: Record<Entity, string> = {
+  projectFiles: "file link",
   companies: "client",
   contacts: "contact",
   deals: "project",
@@ -58,13 +64,20 @@ export function CrmEditorProvider({ children }: { children: ReactNode }) {
 }
 
 function RecordForm({
-  editor: { entity, record = {}, companyId },
+  editor: { entity, record = {}, companyId, projectId },
   close,
 }: {
   editor: Editor;
   close: () => void;
 }) {
   const companies = useCompaniesStore((s) => s.companies);
+  const projects = useCompaniesStore((s) => s.deals);
+  const [selectedClient, setSelectedClient] = useState(
+    String(record.companyId ?? companyId ?? companies[0]?.id ?? ""),
+  );
+  const [selectedProject, setSelectedProject] = useState(
+    String(record.projectId ?? projectId ?? ""),
+  );
   const saving = useCompaniesStore((s) => s.saving);
   const mutate = useCompaniesStore((s) => s.mutate);
   const [error, setError] = useState<string | null>(null);
@@ -151,13 +164,72 @@ function RecordForm({
             </DialogDescription>
           </DialogHeader>
           <div className="grid max-h-[65dvh] gap-4 overflow-y-auto p-5">
-            {entity !== "companies" &&
-              select(
-                "companyId",
-                "Client",
-                companies.map((c) => ({ value: c.id, label: c.name })),
-                companyId ?? companies[0]?.id ?? "",
-              )}
+            {entity !== "companies" && (
+              <label className="flex flex-col gap-2 text-sm">
+                Client
+                <select
+                  name="companyId"
+                  className={selectClass}
+                  required
+                  value={selectedClient}
+                  onChange={(e) => {
+                    setSelectedClient(e.target.value);
+                    setSelectedProject("");
+                  }}
+                  disabled={Boolean(projectId) || (entity === "deals" && edit)}
+                >
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                {(Boolean(projectId) || (entity === "deals" && edit)) && (
+                  <input
+                    type="hidden"
+                    name="companyId"
+                    value={selectedClient}
+                  />
+                )}
+              </label>
+            )}
+            {["tasks", "contacts", "activities", "projectFiles"].includes(
+              entity,
+            ) && (
+              <label className="flex flex-col gap-2 text-sm">
+                Project
+                <select
+                  name="projectId"
+                  className={selectClass}
+                  value={selectedProject}
+                  required={entity === "projectFiles"}
+                  onChange={(e) => setSelectedProject(e.target.value)}
+                >
+                  <option value="">
+                    {entity === "projectFiles"
+                      ? "Choose a project"
+                      : "Client only"}
+                  </option>
+                  {projects
+                    .filter((p) => p.companyId === selectedClient)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.title}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
+            {entity === "projectFiles" && (
+              <>
+                {field("title", "Document name", "text", true)}
+                {field("url", "File or folder URL", "url", true)}
+                <p className="text-subtle text-xs">
+                  Link a drawing, document, or shared folder. Access is managed
+                  by your file provider.
+                </p>
+              </>
+            )}
             {entity === "companies" && (
               <>
                 {field("name", "Client name", "text", true)}
@@ -293,8 +365,10 @@ function RecordForm({
               <div className="rounded-lg border border-red-400/40 p-3 text-sm">
                 <p>
                   Delete this {labels[entity]}?{" "}
+                  {entity === "deals" &&
+                    "File links will be removed. Tasks, contacts, and correspondence will remain with the client."}
                   {entity === "companies" &&
-                    "Its contacts, projects, tasks, and correspondence will also be deleted."}
+                    "Its contacts, projects, tasks, correspondence, and file links will also be deleted."}
                 </p>
                 <div className="mt-3 flex gap-2">
                   <Button
