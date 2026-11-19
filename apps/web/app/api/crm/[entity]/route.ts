@@ -9,6 +9,7 @@ import {
   entitySchemas,
   type Entity,
 } from "@/lib/crm/validation";
+import { createBillingHandler } from "@/lib/crm/billing-handler";
 import { createDecisionHandler } from "@/lib/crm/decision-handler";
 import { splitOpportunityValues } from "@/lib/crm/money";
 
@@ -22,6 +23,11 @@ async function mutate(request: Request, context: Context) {
   if (!Object.hasOwn(entitySchemas, entity))
     return Response.json({ error: "Unknown record type." }, { status: 404 });
   const kind = entity as Entity;
+  if (kind === "feeMilestones" || kind === "paymentReceipts")
+    return createBillingHandler(
+      { authorize: async () => access, getDb },
+      kind,
+    )(request);
   if (kind === "projectDecisions")
     return createDecisionHandler({ authorize: async () => access, getDb })(
       request,
@@ -128,7 +134,10 @@ async function mutate(request: Request, context: Context) {
     }
     // Keep the table/schema pairing explicit so every write remains type checked.
     async function save(
-      entity: Exclude<Entity, "companies" | "projectDecisions">,
+      entity: Exclude<
+        Entity,
+        "companies" | "projectDecisions" | "feeMilestones" | "paymentReceipts"
+      >,
     ) {
       const id =
         request.method === "PATCH" ? z.uuid().parse(body.id) : undefined;

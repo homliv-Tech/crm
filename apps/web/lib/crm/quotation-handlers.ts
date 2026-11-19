@@ -53,6 +53,7 @@ export function createQuotationHandlers({
             title: sql<string>`${quotations.document}->>'title'`,
             client: sql<string>`${quotations.document}->'to'->>'name'`,
             status: sql<string>`${quotations.document}->>'status'`,
+            currency: sql<string>`${quotations.document}->>'currency'`,
           })
           .from(quotations)
           .where(

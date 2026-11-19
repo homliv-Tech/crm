@@ -65,7 +65,37 @@ export type ProjectDecision = {
   additionalFee: string;
   scheduleImpactDays: number;
 };
+export type FeeMilestone = {
+  id: string;
+  companyId: string;
+  projectId: string;
+  title: string;
+  phase: ProjectPhase;
+  amount: string;
+  receivedAmount: string;
+  dueDate: string;
+  invoiceNumber: string | null;
+  invoiceDate: string | null;
+  quotationId: string | null;
+  notes: string;
+};
+export type PaymentReceipt = {
+  id: string;
+  companyId: string;
+  projectId: string;
+  milestoneId: string;
+  receiptNumber: string;
+  amount: string;
+  receivedDate: string;
+  method: (typeof import("./billing").PAYMENT_METHODS)[number];
+  reference: string;
+  notes: string;
+  status: (typeof import("./billing").RECEIPT_STATUSES)[number];
+  voidReason: string;
+};
 export type CrmSnapshot = {
+  feeMilestones: FeeMilestone[];
+  paymentReceipts: PaymentReceipt[];
   projectDecisions: ProjectDecision[];
   projectFiles: ProjectFile[];
   companies: CrmCompany[];

@@ -1,3 +1,4 @@
+import { feeMilestoneInput, paymentReceiptInput } from "./billing";
 import { z } from "zod";
 import { DECISION_KINDS, DECISION_STATUSES } from "./decisions";
 import { PROJECT_PHASES } from "./projects";
@@ -156,6 +157,8 @@ export const projectDecisionInput = z
       });
   });
 export const entitySchemas = {
+  feeMilestones: feeMilestoneInput,
+  paymentReceipts: paymentReceiptInput,
   projectDecisions: projectDecisionInput,
   projectFiles: projectFileInput,
   companies: companyInput,
