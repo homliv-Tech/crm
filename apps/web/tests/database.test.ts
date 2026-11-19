@@ -138,7 +138,15 @@ test("sales migration preserves relationships and archives sales details without
     assert.deepEqual(company.tags, []);
     assert.ok(company.description.includes("Original notes"));
     assert.ok(company.description.includes("SMB, New Logo"));
-    assert.equal((await db.select().from(tables.contacts))[0].companyId, id);
+    // This test deliberately stops at the historical architecture migration.
+    assert.equal(
+      (
+        await db
+          .select({ companyId: tables.contacts.companyId })
+          .from(tables.contacts)
+      )[0].companyId,
+      id,
+    );
     const [created] = await db
       .insert(tables.deals)
       .values({
@@ -210,13 +218,11 @@ test("quotations preserve full documents, reject stale saves, and follow client 
       "Sent",
     );
     await assert.rejects(
-      db
-        .insert(tables.quotations)
-        .values({
-          id: crypto.randomUUID(),
-          companyId: crypto.randomUUID(),
-          document,
-        }),
+      db.insert(tables.quotations).values({
+        id: crypto.randomUUID(),
+        companyId: crypto.randomUUID(),
+        document,
+      }),
     );
     await db
       .delete(tables.companies)

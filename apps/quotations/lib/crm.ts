@@ -1,4 +1,9 @@
-import { quotationSchema, type Quotation, type Workspace } from "./quotation";
+import {
+  createQuotation,
+  quotationSchema,
+  type Quotation,
+  type Workspace,
+} from "./quotation";
 
 export type CrmQuotationSummary = {
   id: string;
@@ -96,4 +101,38 @@ export async function deleteCrmQuotation(
     if (!(error instanceof CrmRequestError && error.status === 404))
       throw error;
   }
+}
+
+// Opening a project always creates a fresh draft and preserves the active quote.
+export function createClientQuote(
+  workspace: Workspace,
+  data: CrmData,
+  companyId: string,
+  projectId?: string | null,
+): Workspace {
+  if (
+    !data.companies.some((c) => c.id === companyId) ||
+    workspace.quotes.length >= 100
+  )
+    return workspace;
+  const project = data.deals.find(
+    (p) => p.id === projectId && p.companyId === companyId,
+  );
+  const quote = {
+    ...createQuotation(workspace.quotes),
+    ...clientPatch(data, companyId),
+    ...(project
+      ? {
+          crm: { companyId, contactId: null, projectId: project.id },
+          title: project.title,
+          siteAddress: project.siteAddress,
+          scope: project.brief,
+        }
+      : {}),
+  };
+  return {
+    ...workspace,
+    activeId: quote.id,
+    quotes: [quote, ...workspace.quotes],
+  };
 }

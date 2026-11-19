@@ -47,8 +47,13 @@ export const companyCreateInput = companyInput.refine(
     path: ["openDeals"],
   },
 );
+const projectReference = z
+  .union([z.uuid(), z.literal("")])
+  .nullish()
+  .transform((v) => v || null);
 export const contactInput = z.object({
   companyId: z.uuid(),
+  projectId: projectReference,
   name,
   email: z.union([z.email(), z.literal("")]).default(""),
   phone: z.string().trim().max(100).default(""),
@@ -71,6 +76,7 @@ export const dealInput = z.object({
 });
 export const taskInput = z.object({
   companyId: z.uuid(),
+  projectId: projectReference,
   title: name,
   owner,
   dueDate: date,
@@ -78,6 +84,7 @@ export const taskInput = z.object({
 });
 export const activityInput = z.object({
   companyId: z.uuid(),
+  projectId: projectReference,
   type: z.enum(["Note", "Call", "Email", "Meeting"]),
   body: z.string().trim().min(1).max(10000),
   occurredAt: z.iso
@@ -85,7 +92,14 @@ export const activityInput = z.object({
     .optional()
     .transform((v) => (v ? new Date(v) : new Date())),
 });
+export const projectFileInput = z.object({
+  companyId: z.uuid(),
+  projectId: z.uuid(),
+  title: name,
+  url: z.url({ protocol: /^https?$/ }).max(4000),
+});
 export const entitySchemas = {
+  projectFiles: projectFileInput,
   companies: companyInput,
   contacts: contactInput,
   deals: dealInput,

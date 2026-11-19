@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
@@ -89,11 +89,56 @@ async function mutate(request: Request, context: Context) {
       await db.batch(queries);
       return Response.json({ ok: true, id }, { status: 201 });
     }
+    if (kind !== "deals" && "projectId" in body && body.projectId) {
+      const projectId = z.uuid().parse(body.projectId);
+      const companyId = z.uuid().parse(body.companyId);
+      const [project] = await db
+        .select({ id: tables.deals.id })
+        .from(tables.deals)
+        .where(
+          and(
+            eq(tables.deals.id, projectId),
+            eq(tables.deals.companyId, companyId),
+          ),
+        );
+      if (!project)
+        return Response.json(
+          { error: "Project does not belong to this client." },
+          { status: 400 },
+        );
+    }
+    if (kind === "deals" && request.method === "PATCH") {
+      const [existing] = await db
+        .select()
+        .from(tables.deals)
+        .where(eq(tables.deals.id, z.uuid().parse(body.id)));
+      if (existing && existing.companyId !== body.companyId)
+        return Response.json(
+          {
+            error:
+              "A project's client cannot be changed. Create a project for the other client.",
+          },
+          { status: 400 },
+        );
+    }
     // Keep the table/schema pairing explicit so every write remains type checked.
     async function save(entity: Exclude<Entity, "companies">) {
       const id =
         request.method === "PATCH" ? z.uuid().parse(body.id) : undefined;
       switch (entity) {
+        case "projectFiles": {
+          const data = entitySchemas.projectFiles.parse(body);
+          return id
+            ? db
+                .update(tables.projectFiles)
+                .set({ ...data, updatedAt: new Date() })
+                .where(eq(tables.projectFiles.id, id))
+                .returning({ id: tables.projectFiles.id })
+            : db
+                .insert(tables.projectFiles)
+                .values(data)
+                .returning({ id: tables.projectFiles.id });
+        }
         case "contacts": {
           const data = entitySchemas.contacts.parse(body);
           return id
@@ -177,7 +222,8 @@ async function mutate(request: Request, context: Context) {
     if (cause?.code === "23503")
       return Response.json(
         {
-          error: "The linked client no longer exists. Refresh and try again.",
+          error:
+            "The linked client or project changed or no longer exists. Refresh and try again.",
         },
         { status: 409 },
       );

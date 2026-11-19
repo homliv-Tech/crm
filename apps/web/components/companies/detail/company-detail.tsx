@@ -139,7 +139,7 @@ export default function CompanyDetail() {
             </section>
             <section className="mb-6">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-base">Deals</h2>
+                <h2 className="text-base">Projects</h2>
                 <Button
                   disabled={!state.canWrite}
                   onClick={() =>
@@ -153,8 +153,7 @@ export default function CompanyDetail() {
                 <button
                   className="border-border hover:bg-muted mb-2 block w-full rounded-lg border p-3 text-left"
                   key={d.id}
-                  disabled={!state.canWrite}
-                  onClick={() => editor({ entity: "deals", record: { ...d } })}
+                  onClick={() => state.openProject(d.id)}
                 >
                   <p className="text-sm">{d.title}</p>
                   <p className="text-subtle mt-1 text-xs">

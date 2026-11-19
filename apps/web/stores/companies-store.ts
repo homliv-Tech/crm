@@ -12,6 +12,7 @@ type CompaniesState = {
   deals: CrmSnapshot["deals"];
   tasks: CrmSnapshot["tasks"];
   activities: CrmSnapshot["activities"];
+  projectFiles: CrmSnapshot["projectFiles"];
   accessState: "checking" | "allowed" | "denied" | "unavailable";
   accessEpoch: number;
   checkAccess: (hide?: boolean) => Promise<boolean>;
@@ -32,6 +33,9 @@ type CompaniesState = {
   stage: string;
   activityWindow: number;
   selectedIds: string[];
+  projectId: string | null;
+  openProject: (id: string) => void;
+  closeProject: () => void;
   detailId: string | null;
   detailOpen: boolean;
   profileName: string | null;
@@ -67,6 +71,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   deals: [],
   tasks: [],
   activities: [],
+  projectFiles: [],
   accessState: "checking",
   accessEpoch: 0,
   canWrite: false,
@@ -84,11 +89,13 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       deals: [],
       tasks: [],
       activities: [],
+      projectFiles: [],
       canWrite: false,
       loading: false,
       saving: false,
       selectedIds: [],
       detailId: null,
+      projectId: null,
       detailOpen: false,
       profileName: null,
       profileOpen: false,
@@ -213,6 +220,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       deals: "Project",
       tasks: "Task",
       activities: "Activity",
+      projectFiles: "File link",
     }[entity];
     const name = String(
       record.name || record.title || record.body || "",
@@ -292,6 +300,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   ...DEFAULT_FILTERS,
   selectedIds: [],
   detailId: null,
+  projectId: null,
   detailOpen: false,
   profileName: null,
   profileOpen: false,
@@ -312,6 +321,9 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
         : [...state.selectedIds, id],
     })),
   setSelected: (selectedIds) => set({ selectedIds }),
+  openProject: (projectId) =>
+    set({ projectId, detailOpen: false, activeTab: "deals" }),
+  closeProject: () => set({ projectId: null }),
   openDetail: (detailId) =>
     set({ detailId, detailOpen: true, profileOpen: false }),
   closeDetail: () => set({ detailOpen: false }),
@@ -329,7 +341,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       ),
     })),
   markAllNotificationsRead: () => set({ unreadNotificationIds: [] }),
-  setActiveTab: (activeTab) => set({ activeTab }),
+  setActiveTab: (activeTab) => set({ activeTab, projectId: null }),
   addCompany: async (company) => {
     const saved = await get().mutate("companies", "POST", company);
     if (saved) set({ newCompanyOpen: false });
