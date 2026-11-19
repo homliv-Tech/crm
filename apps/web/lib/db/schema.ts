@@ -1,3 +1,4 @@
+import { PAYMENT_METHODS, RECEIPT_STATUSES } from "../crm/billing";
 import { DECISION_KINDS, DECISION_STATUSES } from "../crm/decisions";
 import { PROJECT_PHASES } from "../crm/projects";
 import { sql } from "drizzle-orm";
@@ -302,6 +303,94 @@ export const projectDecisions = pgTable(
     check(
       "decision_change_impacts_only",
       sql`${t.kind} = 'Design change' or (${t.additionalFee} = 0 and ${t.scheduleImpactDays} = 0)`,
+    ),
+  ],
+);
+
+export const paymentMethod = pgEnum("payment_method", PAYMENT_METHODS);
+export const receiptStatus = pgEnum("receipt_status", RECEIPT_STATUSES);
+
+export const feeMilestones = pgTable(
+  "fee_milestones",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull(),
+    projectId: uuid("project_id").notNull(),
+    title: text("title").notNull(),
+    phase: dealStage("phase").notNull(),
+    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    receivedAmount: numeric("received_amount", { precision: 14, scale: 2 })
+      .notNull()
+      .default("0"),
+    dueDate: date("due_date").notNull(),
+    invoiceNumber: text("invoice_number"),
+    invoiceDate: date("invoice_date"),
+    quotationId: uuid("quotation_id").references(() => quotations.id, {
+      onDelete: "set null",
+    }),
+    notes: text("notes").notNull().default(""),
+    ...timestamps,
+  },
+  (t) => [
+    unique("fee_milestones_identity_unique").on(t.id, t.projectId, t.companyId),
+    unique("fee_milestones_invoice_unique").on(t.invoiceNumber),
+    index("fee_milestones_company_idx").on(t.companyId),
+    index("fee_milestones_project_idx").on(t.projectId),
+    index("fee_milestones_quotation_idx").on(t.quotationId),
+    foreignKey({
+      columns: [t.projectId, t.companyId],
+      foreignColumns: [deals.id, deals.companyId],
+      name: "fee_milestones_project_client_fk",
+    }).onDelete("cascade"),
+    check("milestone_title_required", sql`length(trim(${t.title})) > 0`),
+    check("milestone_amount_positive", sql`${t.amount} > 0`),
+    check(
+      "milestone_received_range",
+      sql`${t.receivedAmount} >= 0 and ${t.receivedAmount} <= ${t.amount}`,
+    ),
+    check(
+      "milestone_invoice_pair",
+      sql`(${t.invoiceNumber} is null and ${t.invoiceDate} is null) or (length(trim(${t.invoiceNumber})) > 0 and ${t.invoiceNumber} is not null and ${t.invoiceDate} is not null)`,
+    ),
+  ],
+);
+
+export const paymentReceipts = pgTable(
+  "payment_receipts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull(),
+    projectId: uuid("project_id").notNull(),
+    milestoneId: uuid("milestone_id").notNull(),
+    receiptNumber: text("receipt_number").notNull(),
+    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    receivedDate: date("received_date").notNull(),
+    method: paymentMethod("method").notNull(),
+    reference: text("reference").notNull().default(""),
+    notes: text("notes").notNull().default(""),
+    status: receiptStatus("status").notNull().default("Recorded"),
+    voidReason: text("void_reason").notNull().default(""),
+    ...timestamps,
+  },
+  (t) => [
+    unique("payment_receipts_number_unique").on(t.projectId, t.receiptNumber),
+    index("payment_receipts_company_idx").on(t.companyId),
+    index("payment_receipts_project_idx").on(t.projectId),
+    index("payment_receipts_milestone_idx").on(t.milestoneId),
+    foreignKey({
+      columns: [t.milestoneId, t.projectId, t.companyId],
+      foreignColumns: [
+        feeMilestones.id,
+        feeMilestones.projectId,
+        feeMilestones.companyId,
+      ],
+      name: "payment_receipts_milestone_scope_fk",
+    }).onDelete("cascade"),
+    check("receipt_number_required", sql`length(trim(${t.receiptNumber})) > 0`),
+    check("receipt_amount_positive", sql`${t.amount} > 0`),
+    check(
+      "receipt_void_reason",
+      sql`(${t.status} = 'Recorded' and ${t.voidReason} = '') or (${t.status} = 'Voided' and length(trim(${t.voidReason})) > 0)`,
     ),
   ],
 );

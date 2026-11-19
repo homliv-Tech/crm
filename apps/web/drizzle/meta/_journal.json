@@ -50,6 +50,13 @@
       "when": 1795112181556,
       "tag": "0006_redundant_slayback",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795112721609,
+      "tag": "0007_heavy_hobgoblin",
+      "breakpoints": true
     }
   ]
 }

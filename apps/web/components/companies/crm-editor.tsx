@@ -15,6 +15,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/_ui/dialog";
+import BillingFields from "./billing-fields";
 import DecisionFields from "./decision-fields";
 import Button from "@/components/_ui/button";
 import { Input } from "@/components/_ui/input";
@@ -33,6 +34,8 @@ type Editor = {
 const EditorContext = createContext<(editor: Editor) => void>(() => {});
 export const useCrmEditor = () => useContext(EditorContext);
 const labels: Record<Entity, string> = {
+  feeMilestones: "fee milestone",
+  paymentReceipts: "payment receipt",
   projectFiles: "file link",
   projectDecisions: "approval or design change",
   companies: "client",
@@ -180,7 +183,13 @@ function RecordForm({
                   }}
                   disabled={
                     Boolean(projectId) ||
-                    (["deals", "projectDecisions"].includes(entity) && edit)
+                    ([
+                      "deals",
+                      "projectDecisions",
+                      "feeMilestones",
+                      "paymentReceipts",
+                    ].includes(entity) &&
+                      edit)
                   }
                 >
                   {companies.map((c) => (
@@ -190,7 +199,13 @@ function RecordForm({
                   ))}
                 </select>
                 {(Boolean(projectId) ||
-                  (["deals", "projectDecisions"].includes(entity) && edit)) && (
+                  ([
+                    "deals",
+                    "projectDecisions",
+                    "feeMilestones",
+                    "paymentReceipts",
+                  ].includes(entity) &&
+                    edit)) && (
                   <input
                     type="hidden"
                     name="companyId"
@@ -205,6 +220,8 @@ function RecordForm({
               "activities",
               "projectFiles",
               "projectDecisions",
+              "feeMilestones",
+              "paymentReceipts",
             ].includes(entity) && (
               <label className="flex flex-col gap-2 text-sm">
                 Project
@@ -212,14 +229,29 @@ function RecordForm({
                   name="projectId"
                   className={selectClass}
                   value={selectedProject}
-                  required={
-                    entity === "projectFiles" || entity === "projectDecisions"
+                  required={[
+                    "projectFiles",
+                    "projectDecisions",
+                    "feeMilestones",
+                    "paymentReceipts",
+                  ].includes(entity)}
+                  disabled={
+                    [
+                      "projectDecisions",
+                      "feeMilestones",
+                      "paymentReceipts",
+                    ].includes(entity) &&
+                    (edit || Boolean(projectId))
                   }
-                  disabled={entity === "projectDecisions" && edit}
                   onChange={(e) => setSelectedProject(e.target.value)}
                 >
                   <option value="">
-                    {["projectFiles", "projectDecisions"].includes(entity)
+                    {[
+                      "projectFiles",
+                      "projectDecisions",
+                      "feeMilestones",
+                      "paymentReceipts",
+                    ].includes(entity)
                       ? "Choose a project"
                       : "Client only"}
                   </option>
@@ -231,14 +263,29 @@ function RecordForm({
                       </option>
                     ))}
                 </select>
-                {entity === "projectDecisions" && edit && (
-                  <input
-                    type="hidden"
-                    name="projectId"
-                    value={selectedProject}
-                  />
-                )}
+                {[
+                  "projectDecisions",
+                  "feeMilestones",
+                  "paymentReceipts",
+                ].includes(entity) &&
+                  (edit || Boolean(projectId)) && (
+                    <input
+                      type="hidden"
+                      name="projectId"
+                      value={selectedProject}
+                    />
+                  )}
               </label>
+            )}
+            {(entity === "feeMilestones" || entity === "paymentReceipts") && (
+              <BillingFields
+                key={`${entity}-${selectedProject}`}
+                entity={entity}
+                record={record}
+                projectId={selectedProject}
+                companyId={selectedClient}
+                inputClass={selectClass}
+              />
             )}
             {entity === "projectDecisions" && (
               <DecisionFields
@@ -393,9 +440,9 @@ function RecordForm({
                 <p>
                   Delete this {labels[entity]}?{" "}
                   {entity === "deals" &&
-                    "File links, approvals, and design changes will be removed. Tasks, contacts, and correspondence will remain with the client."}
+                    "File links, approvals, design changes, fee milestones, and receipts will be removed. Tasks, contacts, and correspondence will remain with the client."}
                   {entity === "companies" &&
-                    "Its contacts, projects, tasks, correspondence, file links, approvals, and design changes will also be deleted."}
+                    "Its contacts, projects, tasks, correspondence, file links, approvals, design changes, fee milestones, and receipts will also be deleted."}
                 </p>
                 <div className="mt-3 flex gap-2">
                   <Button
@@ -416,7 +463,7 @@ function RecordForm({
             )}
           </div>
           <DialogFooter>
-            {edit && (
+            {edit && entity !== "paymentReceipts" && (
               <Button
                 className="mr-auto text-red-400"
                 disabled={saving}

@@ -18,6 +18,8 @@ const snapshot = {
   activities: [],
   projectFiles: [],
   projectDecisions: [],
+  feeMilestones: [],
+  paymentReceipts: [],
 };
 function seed() {
   useCompaniesStore.setState(useCompaniesStore.getInitialState(), true);
@@ -27,6 +29,38 @@ function seed() {
     canWrite: true,
     loading: false,
     projectId: "project-to-clear",
+    feeMilestones: [
+      {
+        id: "milestone",
+        companyId: snapshot.companies[0].id,
+        projectId: "project-to-clear",
+        title: "Advance",
+        phase: "Briefing",
+        amount: "100.00",
+        receivedAmount: "50.00",
+        dueDate: "2026-12-01",
+        invoiceNumber: "INV-1",
+        invoiceDate: "2026-11-19",
+        quotationId: null,
+        notes: "",
+      },
+    ],
+    paymentReceipts: [
+      {
+        id: "receipt",
+        companyId: snapshot.companies[0].id,
+        projectId: "project-to-clear",
+        milestoneId: "milestone",
+        receiptNumber: "R-1",
+        amount: "50.00",
+        receivedDate: "2026-11-19",
+        method: "UPI",
+        reference: "",
+        notes: "",
+        status: "Recorded",
+        voidReason: "",
+      },
+    ],
     projectDecisions: [
       {
         id: "decision",
@@ -75,6 +109,8 @@ function assertCleared() {
     "activities",
     "projectFiles",
     "projectDecisions",
+    "feeMilestones",
+    "paymentReceipts",
     "selectedIds",
   ] as const)
     assert.deepEqual(state[key], []);

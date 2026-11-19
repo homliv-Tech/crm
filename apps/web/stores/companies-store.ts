@@ -14,6 +14,8 @@ type CompaniesState = {
   activities: CrmSnapshot["activities"];
   projectFiles: CrmSnapshot["projectFiles"];
   projectDecisions: CrmSnapshot["projectDecisions"];
+  feeMilestones: CrmSnapshot["feeMilestones"];
+  paymentReceipts: CrmSnapshot["paymentReceipts"];
   accessState: "checking" | "allowed" | "denied" | "unavailable";
   accessEpoch: number;
   checkAccess: (hide?: boolean) => Promise<boolean>;
@@ -74,6 +76,8 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   activities: [],
   projectFiles: [],
   projectDecisions: [],
+  feeMilestones: [],
+  paymentReceipts: [],
   accessState: "checking",
   accessEpoch: 0,
   canWrite: false,
@@ -93,6 +97,8 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       activities: [],
       projectFiles: [],
       projectDecisions: [],
+      feeMilestones: [],
+      paymentReceipts: [],
       canWrite: false,
       loading: false,
       saving: false,
@@ -225,9 +231,11 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       activities: "Activity",
       projectFiles: "File link",
       projectDecisions: "Decision",
+      feeMilestones: "Fee milestone",
+      paymentReceipts: "Payment receipt",
     }[entity];
     const name = String(
-      record.name || record.title || record.body || "",
+      record.name || record.title || record.receiptNumber || record.body || "",
     ).trim();
     const displayName = name.length > 120 ? `${name.slice(0, 117)}…` : name;
     const client = get().companies.find(
