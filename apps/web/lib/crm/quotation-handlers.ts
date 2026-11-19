@@ -81,7 +81,7 @@ export function createQuotationHandlers({
             : and(
                 eq(quotations.companyId, z.uuid().parse(companyId)),
                 projectId
-                  ? sql`${quotations.document}->'crm'->>'projectId' = ${projectId}`
+                  ? sql`lower(${quotations.document}->'crm'->>'projectId') = lower(${projectId})`
                   : undefined,
               ),
         )
