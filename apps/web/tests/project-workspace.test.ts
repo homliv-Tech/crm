@@ -122,7 +122,7 @@ test("project records enforce client ownership and preserve client history when 
   }
 });
 
-test("project quotations exclude client-only and sibling-project quotes", async () => {
+test("project quotations match UUID casing and exclude client-only and sibling-project quotes", async () => {
   const client = new PGlite();
   try {
     const db = drizzle(client);
@@ -141,30 +141,59 @@ test("project quotations exclude client-only and sibling-project quotes", async 
         })),
       )
       .returning();
-    for (const projectId of [null, ...projects.map((p) => p.id)]) {
-      const document = createQuotation();
-      document.crm = { companyId: company.id, projectId, contactId: null };
-      await db
-        .insert(tables.quotations)
-        .values({ id: document.id, companyId: company.id, document });
-    }
     const handlers = createQuotationHandlers({
       authorize: async () => ({}),
       getDb: () => db as unknown as ReturnType<typeof getDb>,
     });
-    const response = await handlers.GET(
+    const uppercaseProjectId = projects[0].id.toUpperCase();
+    for (const projectId of [
+      null,
+      ...projects.map((p) => p.id),
+      uppercaseProjectId,
+    ]) {
+      const document = createQuotation();
+      document.crm = { companyId: company.id, projectId, contactId: null };
+      const saved = await handlers.POST(
+        new Request("https://crm.example/api/quotations", {
+          method: "POST",
+          headers: {
+            origin: "https://crm.example",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ document, version: 0 }),
+        }),
+      );
+      assert.equal(saved.status, 200);
+    }
+    for (const projectId of [projects[0].id, uppercaseProjectId]) {
+      const response = await handlers.GET(
+        new Request(
+          `https://crm.example/api/quotations?companyId=${company.id}&projectId=${projectId}`,
+        ),
+      );
+      assert.equal(response.status, 200);
+      const { quotations } = await response.json();
+      assert.equal(quotations.length, 2);
+      assert.deepEqual(
+        quotations
+          .map(
+            (q: { document: { crm: { projectId: string } } }) =>
+              q.document.crm.projectId,
+          )
+          .sort(),
+        [projects[0].id, uppercaseProjectId].sort(),
+      );
+    }
+    const otherClient = await handlers.GET(
       new Request(
-        `https://crm.example/api/quotations?companyId=${company.id}&projectId=${projects[0].id}`,
+        `https://crm.example/api/quotations?companyId=${crypto.randomUUID()}&projectId=${uppercaseProjectId}`,
       ),
     );
-    assert.equal(response.status, 200);
-    const { quotations } = await response.json();
-    assert.equal(quotations.length, 1);
-    assert.equal(quotations[0].document.crm.projectId, projects[0].id);
+    assert.deepEqual((await otherClient.json()).quotations, []);
     const all = await handlers.GET(
       new Request(`https://crm.example/api/quotations?companyId=${company.id}`),
     );
-    assert.equal((await all.json()).quotations.length, 3);
+    assert.equal((await all.json()).quotations.length, 4);
   } finally {
     await client.close();
   }
