@@ -7,6 +7,8 @@ import type { CrmSnapshot } from "./types";
 export async function getSnapshot(): Promise<CrmSnapshot> {
   const db = getDb();
   const [
+    phaseSchedules,
+    projectDeliverables,
     feeMilestones,
     paymentReceipts,
     projectDecisions,
@@ -17,6 +19,17 @@ export async function getSnapshot(): Promise<CrmSnapshot> {
     activities,
     projectFiles,
   ] = await db.batch([
+    db
+      .select()
+      .from(schema.phaseSchedules)
+      .orderBy(schema.phaseSchedules.createdAt),
+    db
+      .select()
+      .from(schema.projectDeliverables)
+      .orderBy(
+        schema.projectDeliverables.createdAt,
+        schema.projectDeliverables.id,
+      ),
     db
       .select()
       .from(schema.feeMilestones)
@@ -58,6 +71,11 @@ export async function getSnapshot(): Promise<CrmSnapshot> {
   return {
     companies: summarizeCompanies(companies, deals, serializedActivities),
     contacts,
+    phaseSchedules,
+    projectDeliverables: projectDeliverables.map((d) => ({
+      ...d,
+      completedAt: d.completedAt?.toISOString() ?? null,
+    })),
     feeMilestones,
     paymentReceipts,
     projectFiles,

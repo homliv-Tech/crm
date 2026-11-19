@@ -16,6 +16,8 @@ type CompaniesState = {
   projectDecisions: CrmSnapshot["projectDecisions"];
   feeMilestones: CrmSnapshot["feeMilestones"];
   paymentReceipts: CrmSnapshot["paymentReceipts"];
+  phaseSchedules: CrmSnapshot["phaseSchedules"];
+  projectDeliverables: CrmSnapshot["projectDeliverables"];
   accessState: "checking" | "allowed" | "denied" | "unavailable";
   accessEpoch: number;
   checkAccess: (hide?: boolean) => Promise<boolean>;
@@ -78,6 +80,8 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   projectDecisions: [],
   feeMilestones: [],
   paymentReceipts: [],
+  phaseSchedules: [],
+  projectDeliverables: [],
   accessState: "checking",
   accessEpoch: 0,
   canWrite: false,
@@ -99,6 +103,8 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       projectDecisions: [],
       feeMilestones: [],
       paymentReceipts: [],
+      phaseSchedules: [],
+      projectDeliverables: [],
       canWrite: false,
       loading: false,
       saving: false,
@@ -233,9 +239,16 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       projectDecisions: "Decision",
       feeMilestones: "Fee milestone",
       paymentReceipts: "Payment receipt",
+      phaseSchedules: "Phase schedule",
+      projectDeliverables: "Deliverable",
     }[entity];
     const name = String(
-      record.name || record.title || record.receiptNumber || record.body || "",
+      record.name ||
+        record.title ||
+        record.phase ||
+        record.receiptNumber ||
+        record.body ||
+        "",
     ).trim();
     const displayName = name.length > 120 ? `${name.slice(0, 117)}…` : name;
     const client = get().companies.find(
@@ -281,7 +294,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
             "Changes saved, but the list could not refresh. Click Retry to reload.",
         });
       const outcome =
-        entity === "tasks" &&
+        (entity === "tasks" || entity === "projectDeliverables") &&
         method === "PATCH" &&
         typeof input.completed === "boolean"
           ? input.completed
@@ -292,7 +305,12 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
             : method === "DELETE"
               ? "deleted"
               : "updated";
-      toast.success(`${label} ${outcome}`, context);
+      toast.success(
+        input.action === "applyTemplate"
+          ? "Checklist applied"
+          : `${label} ${outcome}`,
+        context,
+      );
       return true;
     } catch (error) {
       if (epoch === get().accessEpoch) {

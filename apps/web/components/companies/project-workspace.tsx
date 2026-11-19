@@ -4,12 +4,14 @@ import { useState, type ReactNode } from "react";
 import Button from "@/components/_ui/button";
 import { useCompaniesStore } from "@/stores/companies-store";
 import { useCrmEditor, selectClass } from "./crm-editor";
+import ProjectSchedule from "./project-schedule";
 import ProjectFees from "./project-fees";
 import ProjectDecisionRegister from "./project-decision-register";
 import ClientQuotations from "./detail/client-quotations";
 import { money, localDateKey } from "@/lib/crm/format";
 
 type Section =
+  | "schedule"
   | "fees"
   | "overview"
   | "approvals"
@@ -21,6 +23,7 @@ type Section =
   | "quotations";
 const sections: Section[] = [
   "overview",
+  "schedule",
   "fees",
   "approvals",
   "changes",
@@ -206,6 +209,15 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
         <div
           className={`grid gap-6 ${section === "overview" ? "lg:grid-cols-2" : ""}`}
         >
+          {visible("schedule") && (
+            <div className="min-w-0 lg:col-span-full">
+              <ProjectSchedule
+                project={project}
+                overview={section === "overview"}
+                onViewAll={() => setSection("schedule")}
+              />
+            </div>
+          )}
           {visible("fees") && (
             <div className="min-w-0 lg:col-span-full">
               <ProjectFees

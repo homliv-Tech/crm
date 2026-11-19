@@ -1,6 +1,6 @@
 import { PAYMENT_METHODS, RECEIPT_STATUSES } from "../crm/billing";
 import { DECISION_KINDS, DECISION_STATUSES } from "../crm/decisions";
-import { PROJECT_PHASES } from "../crm/projects";
+import { PROJECT_PHASES, type DeliveryPhase } from "../crm/projects";
 import { sql } from "drizzle-orm";
 import {
   pgTable,
@@ -391,6 +391,94 @@ export const paymentReceipts = pgTable(
     check(
       "receipt_void_reason",
       sql`(${t.status} = 'Recorded' and ${t.voidReason} = '') or (${t.status} = 'Voided' and length(trim(${t.voidReason})) > 0)`,
+    ),
+  ],
+);
+
+export const phaseSchedules = pgTable(
+  "phase_schedules",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull(),
+    projectId: uuid("project_id").notNull(),
+    phase: dealStage("phase").$type<DeliveryPhase>().notNull(),
+    plannedStart: date("planned_start"),
+    plannedEnd: date("planned_end"),
+    actualStart: date("actual_start"),
+    actualEnd: date("actual_end"),
+    assigneeId: text("assignee_id"),
+    assigneeName: text("assignee_name").notNull().default("Unassigned"),
+    notes: text("notes").notNull().default(""),
+    ...timestamps,
+  },
+  (t) => [
+    unique("phase_schedules_project_phase_unique").on(t.projectId, t.phase),
+    index("phase_schedules_company_idx").on(t.companyId),
+    index("phase_schedules_assignee_idx").on(t.assigneeId),
+    foreignKey({
+      columns: [t.projectId, t.companyId],
+      foreignColumns: [deals.id, deals.companyId],
+      name: "phase_schedules_project_client_fk",
+    }).onDelete("cascade"),
+    check(
+      "schedule_delivery_phase",
+      sql`${t.phase} not in ('On hold', 'Cancelled')`,
+    ),
+    check(
+      "schedule_planned_order",
+      sql`${t.plannedStart} is null or ${t.plannedEnd} is null or ${t.plannedEnd} >= ${t.plannedStart}`,
+    ),
+    check(
+      "schedule_actual_order",
+      sql`${t.actualEnd} is null or (${t.actualStart} is not null and ${t.actualEnd} >= ${t.actualStart})`,
+    ),
+  ],
+);
+export const projectDeliverables = pgTable(
+  "project_deliverables",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull(),
+    projectId: uuid("project_id").notNull(),
+    phase: dealStage("phase").$type<DeliveryPhase>().notNull(),
+    title: text("title").notNull(),
+    notes: text("notes").notNull().default(""),
+    dueDate: date("due_date"),
+    assigneeId: text("assignee_id"),
+    assigneeName: text("assignee_name").notNull().default("Unassigned"),
+    completed: boolean("completed").notNull().default(false),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    templateKey: text("template_key"),
+    templateItemKey: text("template_item_key"),
+    ...timestamps,
+  },
+  (t) => [
+    unique("deliverables_starter_unique").on(
+      t.projectId,
+      t.templateKey,
+      t.templateItemKey,
+    ),
+    index("deliverables_company_idx").on(t.companyId),
+    index("deliverables_project_phase_idx").on(t.projectId, t.phase),
+    index("deliverables_due_idx").on(t.completed, t.dueDate),
+    index("deliverables_assignee_idx").on(t.assigneeId),
+    foreignKey({
+      columns: [t.projectId, t.companyId],
+      foreignColumns: [deals.id, deals.companyId],
+      name: "deliverables_project_client_fk",
+    }).onDelete("cascade"),
+    check("deliverable_title_required", sql`length(trim(${t.title})) > 0`),
+    check(
+      "deliverable_delivery_phase",
+      sql`${t.phase} not in ('On hold', 'Cancelled')`,
+    ),
+    check(
+      "deliverable_completion_date",
+      sql`(${t.completed} and ${t.completedAt} is not null) or (not ${t.completed} and ${t.completedAt} is null)`,
+    ),
+    check(
+      "deliverable_template_pair",
+      sql`(${t.templateKey} is null and ${t.templateItemKey} is null) or (${t.templateKey} is not null and ${t.templateItemKey} is not null)`,
     ),
   ],
 );

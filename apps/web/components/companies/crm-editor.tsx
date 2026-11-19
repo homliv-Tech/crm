@@ -15,6 +15,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/_ui/dialog";
+import SchedulingFields from "./scheduling-fields";
 import BillingFields from "./billing-fields";
 import DecisionFields from "./decision-fields";
 import Button from "@/components/_ui/button";
@@ -34,6 +35,8 @@ type Editor = {
 const EditorContext = createContext<(editor: Editor) => void>(() => {});
 export const useCrmEditor = () => useContext(EditorContext);
 const labels: Record<Entity, string> = {
+  phaseSchedules: "phase schedule",
+  projectDeliverables: "deliverable",
   feeMilestones: "fee milestone",
   paymentReceipts: "payment receipt",
   projectFiles: "file link",
@@ -96,7 +99,8 @@ function RecordForm({
     const values = Object.fromEntries(formData);
     const data: RecordData = { ...values, ...(edit ? { id: record.id } : {}) };
     if (entity === "companies") data.tags = formData.getAll("tags");
-    if (entity === "tasks") data.completed = values.completed === "on";
+    if (entity === "tasks" || entity === "projectDeliverables")
+      data.completed = values.completed === "on";
     if (entity === "activities")
       data.occurredAt = record.occurredAt ?? new Date().toISOString();
     if (await mutate(entity, edit ? "PATCH" : "POST", data)) close();
@@ -188,6 +192,8 @@ function RecordForm({
                       "projectDecisions",
                       "feeMilestones",
                       "paymentReceipts",
+                      "phaseSchedules",
+                      "projectDeliverables",
                     ].includes(entity) &&
                       edit)
                   }
@@ -204,6 +210,8 @@ function RecordForm({
                     "projectDecisions",
                     "feeMilestones",
                     "paymentReceipts",
+                    "phaseSchedules",
+                    "projectDeliverables",
                   ].includes(entity) &&
                     edit)) && (
                   <input
@@ -222,6 +230,8 @@ function RecordForm({
               "projectDecisions",
               "feeMilestones",
               "paymentReceipts",
+              "phaseSchedules",
+              "projectDeliverables",
             ].includes(entity) && (
               <label className="flex flex-col gap-2 text-sm">
                 Project
@@ -234,12 +244,16 @@ function RecordForm({
                     "projectDecisions",
                     "feeMilestones",
                     "paymentReceipts",
+                    "phaseSchedules",
+                    "projectDeliverables",
                   ].includes(entity)}
                   disabled={
                     [
                       "projectDecisions",
                       "feeMilestones",
                       "paymentReceipts",
+                      "phaseSchedules",
+                      "projectDeliverables",
                     ].includes(entity) &&
                     (edit || Boolean(projectId))
                   }
@@ -251,6 +265,8 @@ function RecordForm({
                       "projectDecisions",
                       "feeMilestones",
                       "paymentReceipts",
+                      "phaseSchedules",
+                      "projectDeliverables",
                     ].includes(entity)
                       ? "Choose a project"
                       : "Client only"}
@@ -267,6 +283,8 @@ function RecordForm({
                   "projectDecisions",
                   "feeMilestones",
                   "paymentReceipts",
+                  "phaseSchedules",
+                  "projectDeliverables",
                 ].includes(entity) &&
                   (edit || Boolean(projectId)) && (
                     <input
@@ -276,6 +294,15 @@ function RecordForm({
                     />
                   )}
               </label>
+            )}
+            {(entity === "phaseSchedules" ||
+              entity === "projectDeliverables") && (
+              <SchedulingFields
+                key={`${entity}-${selectedProject}`}
+                entity={entity}
+                record={record}
+                inputClass={selectClass}
+              />
             )}
             {(entity === "feeMilestones" || entity === "paymentReceipts") && (
               <BillingFields
@@ -439,10 +466,12 @@ function RecordForm({
               <div className="rounded-lg border border-red-400/40 p-3 text-sm">
                 <p>
                   Delete this {labels[entity]}?{" "}
+                  {entity === "phaseSchedules" &&
+                    "Its dates and phase lead will be removed. Deliverables will remain."}
                   {entity === "deals" &&
-                    "File links, approvals, design changes, fee milestones, and receipts will be removed. Tasks, contacts, and correspondence will remain with the client."}
+                    "File links, approvals, design changes, fee milestones, receipts, phase schedules, and deliverables will be removed. Tasks, contacts, and correspondence will remain with the client."}
                   {entity === "companies" &&
-                    "Its contacts, projects, tasks, correspondence, file links, approvals, design changes, fee milestones, and receipts will also be deleted."}
+                    "Its contacts, projects, tasks, correspondence, file links, approvals, design changes, fee milestones, receipts, phase schedules, and deliverables will also be deleted."}
                 </p>
                 <div className="mt-3 flex gap-2">
                   <Button

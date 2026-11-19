@@ -93,7 +93,37 @@ export type PaymentReceipt = {
   status: (typeof import("./billing").RECEIPT_STATUSES)[number];
   voidReason: string;
 };
+export type PhaseSchedule = {
+  id: string;
+  companyId: string;
+  projectId: string;
+  phase: (typeof import("./projects").DELIVERY_PHASES)[number];
+  plannedStart: string | null;
+  plannedEnd: string | null;
+  actualStart: string | null;
+  actualEnd: string | null;
+  assigneeId: string | null;
+  assigneeName: string;
+  notes: string;
+};
+export type ProjectDeliverable = {
+  id: string;
+  companyId: string;
+  projectId: string;
+  phase: (typeof import("./projects").DELIVERY_PHASES)[number];
+  title: string;
+  notes: string;
+  dueDate: string | null;
+  assigneeId: string | null;
+  assigneeName: string;
+  completed: boolean;
+  completedAt: string | null;
+  templateKey: string | null;
+  templateItemKey: string | null;
+};
 export type CrmSnapshot = {
+  phaseSchedules: PhaseSchedule[];
+  projectDeliverables: ProjectDeliverable[];
   feeMilestones: FeeMilestone[];
   paymentReceipts: PaymentReceipt[];
   projectDecisions: ProjectDecision[];

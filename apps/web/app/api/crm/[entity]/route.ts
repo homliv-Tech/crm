@@ -1,3 +1,6 @@
+import { getWorkOS } from "@workos-inc/authkit-nextjs";
+import { createSchedulingHandler } from "@/lib/crm/scheduling-handler";
+import { listAssignableTeam } from "@/lib/crm/team";
 import { and, eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
@@ -23,6 +26,16 @@ async function mutate(request: Request, context: Context) {
   if (!Object.hasOwn(entitySchemas, entity))
     return Response.json({ error: "Unknown record type." }, { status: 404 });
   const kind = entity as Entity;
+  if (kind === "phaseSchedules" || kind === "projectDeliverables")
+    return createSchedulingHandler(
+      {
+        authorize: async () => access,
+        getDb,
+        getTeam: () =>
+          listAssignableTeam(getWorkOS().userManagement, access.organizationId),
+      },
+      kind,
+    )(request);
   if (kind === "feeMilestones" || kind === "paymentReceipts")
     return createBillingHandler(
       { authorize: async () => access, getDb },
@@ -136,7 +149,12 @@ async function mutate(request: Request, context: Context) {
     async function save(
       entity: Exclude<
         Entity,
-        "companies" | "projectDecisions" | "feeMilestones" | "paymentReceipts"
+        | "companies"
+        | "projectDecisions"
+        | "feeMilestones"
+        | "paymentReceipts"
+        | "phaseSchedules"
+        | "projectDeliverables"
       >,
     ) {
       const id =
