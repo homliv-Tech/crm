@@ -39,6 +39,9 @@ export function createQuotationHandlers({
       const projectId = params.has("projectId")
         ? z.uuid().parse(params.get("projectId"))
         : null;
+      const projectFilter = projectId
+        ? sql`lower(${quotations.document}->'crm'->>'projectId') = lower(${projectId})`
+        : undefined;
       if (!id && status !== null) {
         const clientId = z.uuid().parse(companyId);
         const filter = z.enum(["active", "Accepted", "Declined"]).parse(status);
@@ -55,6 +58,7 @@ export function createQuotationHandlers({
           .where(
             and(
               eq(quotations.companyId, clientId),
+              projectFilter,
               filter === "active"
                 ? sql`${quotations.document}->>'status' in ('Draft', 'Sent')`
                 : sql`${quotations.document}->>'status' = ${filter}`,
@@ -80,9 +84,7 @@ export function createQuotationHandlers({
             ? eq(quotations.id, z.uuid().parse(id))
             : and(
                 eq(quotations.companyId, z.uuid().parse(companyId)),
-                projectId
-                  ? sql`lower(${quotations.document}->'crm'->>'projectId') = lower(${projectId})`
-                  : undefined,
+                projectFilter,
               ),
         )
         .orderBy(desc(quotations.updatedAt));
