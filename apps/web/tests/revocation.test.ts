@@ -20,6 +20,8 @@ const snapshot = {
   projectDecisions: [],
   feeMilestones: [],
   paymentReceipts: [],
+  phaseSchedules: [],
+  projectDeliverables: [],
 };
 function seed() {
   useCompaniesStore.setState(useCompaniesStore.getInitialState(), true);
@@ -29,6 +31,38 @@ function seed() {
     canWrite: true,
     loading: false,
     projectId: "project-to-clear",
+    phaseSchedules: [
+      {
+        id: "schedule",
+        companyId: snapshot.companies[0].id,
+        projectId: "project-to-clear",
+        phase: "Briefing",
+        plannedStart: "2026-12-01",
+        plannedEnd: "2026-12-15",
+        actualStart: null,
+        actualEnd: null,
+        assigneeId: "user_a",
+        assigneeName: "Architect",
+        notes: "",
+      },
+    ],
+    projectDeliverables: [
+      {
+        id: "deliverable",
+        companyId: snapshot.companies[0].id,
+        projectId: "project-to-clear",
+        phase: "Briefing",
+        title: "Client brief",
+        assigneeId: "user_a",
+        assigneeName: "Architect",
+        notes: "",
+        dueDate: null,
+        completed: false,
+        completedAt: null,
+        templateKey: "Residential",
+        templateItemKey: "deliverable-1",
+      },
+    ],
     feeMilestones: [
       {
         id: "milestone",
@@ -111,6 +145,8 @@ function assertCleared() {
     "projectDecisions",
     "feeMilestones",
     "paymentReceipts",
+    "phaseSchedules",
+    "projectDeliverables",
     "selectedIds",
   ] as const)
     assert.deepEqual(state[key], []);
