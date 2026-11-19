@@ -4,11 +4,14 @@ import { useState, type ReactNode } from "react";
 import Button from "@/components/_ui/button";
 import { useCompaniesStore } from "@/stores/companies-store";
 import { useCrmEditor, selectClass } from "./crm-editor";
+import ProjectDecisionRegister from "./project-decision-register";
 import ClientQuotations from "./detail/client-quotations";
 import { money, localDateKey } from "@/lib/crm/format";
 
 type Section =
   | "overview"
+  | "approvals"
+  | "changes"
   | "tasks"
   | "correspondence"
   | "contacts"
@@ -16,6 +19,8 @@ type Section =
   | "quotations";
 const sections: Section[] = [
   "overview",
+  "approvals",
+  "changes",
   "tasks",
   "correspondence",
   "contacts",
@@ -57,6 +62,12 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
       </button>
     ) : null;
   const counts: Partial<Record<Section, number>> = {
+    approvals: state.projectDecisions.filter(
+      (d) => d.projectId === projectId && d.kind !== "Design change",
+    ).length,
+    changes: state.projectDecisions.filter(
+      (d) => d.projectId === projectId && d.kind === "Design change",
+    ).length,
     tasks: tasks.length,
     contacts: contacts.length,
     correspondence: activities.length,
@@ -191,6 +202,23 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
         <div
           className={`grid gap-6 ${section === "overview" ? "lg:grid-cols-2" : ""}`}
         >
+          {visible("approvals") && (
+            <ProjectDecisionRegister
+              key="approvals"
+              project={project}
+              overview={section === "overview"}
+              onViewAll={() => setSection("approvals")}
+            />
+          )}
+          {visible("changes") && (
+            <ProjectDecisionRegister
+              key="changes"
+              project={project}
+              changes
+              overview={section === "overview"}
+              onViewAll={() => setSection("changes")}
+            />
+          )}
           {visible("tasks") && (
             <Block
               title="Tasks"

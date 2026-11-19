@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DECISION_KINDS, DECISION_STATUSES } from "./decisions";
 import { PROJECT_PHASES } from "./projects";
 import { SEGMENTS, STAGES } from "@/data/companies";
 
@@ -99,7 +100,63 @@ export const projectFileInput = z.object({
   title: name,
   url: z.url({ protocol: /^https?$/ }).max(4000),
 });
+export const projectDecisionInput = z
+  .object({
+    companyId: z.uuid().transform((v) => v.toLowerCase()),
+    projectId: z.uuid().transform((v) => v.toLowerCase()),
+    title: name,
+    kind: z.enum(DECISION_KINDS),
+    phase: z.enum(PROJECT_PHASES),
+    description: z.string().trim().max(10000).default(""),
+    decisionMaker: name,
+    dueDate: date,
+    revision: name,
+    status: z.enum(DECISION_STATUSES).default("Pending"),
+    approvedRevision: z.string().trim().max(200).default(""),
+    decisionDate: optionalDate.default(null),
+    decisionNote: z.string().trim().max(10000).default(""),
+    additionalFee: z.coerce
+      .number()
+      .min(0)
+      .max(999999999999)
+      .default(0)
+      .transform((v) => v.toFixed(2)),
+    scheduleImpactDays: z.coerce.number().int().min(-3650).max(3650).default(0),
+  })
+  .superRefine((v, ctx) => {
+    if (v.status === "Approved" && !v.approvedRevision)
+      ctx.addIssue({
+        code: "custom",
+        path: ["approvedRevision"],
+        message: "Record the approved revision.",
+      });
+    if (v.status !== "Approved" && v.approvedRevision)
+      ctx.addIssue({
+        code: "custom",
+        path: ["approvedRevision"],
+        message: "Only approved decisions can have an approved revision.",
+      });
+    if (v.status === "Pending" ? v.decisionDate !== null : !v.decisionDate)
+      ctx.addIssue({
+        code: "custom",
+        path: ["decisionDate"],
+        message:
+          v.status === "Pending"
+            ? "Pending decisions cannot have a decision date."
+            : "Record the decision date.",
+      });
+    if (
+      v.kind !== "Design change" &&
+      (v.additionalFee !== "0.00" || v.scheduleImpactDays !== 0)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["additionalFee"],
+        message: "Fee and schedule impacts belong on design changes.",
+      });
+  });
 export const entitySchemas = {
+  projectDecisions: projectDecisionInput,
   projectFiles: projectFileInput,
   companies: companyInput,
   contacts: contactInput,

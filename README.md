@@ -24,11 +24,16 @@ A client and project workspace for architecture firms, built with Next.js 16, Ne
 - Projects: Briefing, Concept design, Detailed design, Approvals, Construction, Handover, On hold, and Cancelled phases. Each project has a site address, brief, architectural fee in INR, progress, lead architect, and target handover date.
 - Tasks: client-linked drawing reviews, site visits, decisions, due dates, overdue indicators, and completion.
 - Project workspace: open a project from the Projects board or a client record to manage its brief, tasks, correspondence (including meetings), contacts/consultants, document links, and quotations. Assign existing client-only records from the workspace or choose a project in their editor. Existing records remain client-only after upgrading. Files are HTTP(S) links to your storage provider; uploads are not included.
-- Project deletion removes its file links and returns its tasks, contacts, and correspondence to the client. Project clients are fixed after creation to preserve record ownership.
+- Approvals and design changes: each project has registers for design approvals, stage sign-offs, and scope changes. Track the decision-maker, deadline, phase, submitted revision, status, approved revision, decision date, and supporting notes. Changes carry an additional architectural fee in INR and schedule impact in days (positive for delay, negative for earlier delivery). Pending overdue items are highlighted; approved changes show their recorded extra fees. Decisions are manually recorded by studio members, rather than sent to clients for signature. Impacts do not automatically change project fees, handover dates, or phases.
+- Project deletion removes its file links, approvals, and design changes and returns its tasks, contacts, and correspondence to the client. Project clients are fixed after creation to preserve record ownership.
 - Correspondence: notes, calls, emails, and meetings in each client's history.
 - Studio overview: client and active project counts, active project fees, phase counts, target handovers, and outstanding tasks. Active totals include on-hold projects; handover and cancelled projects are excluded. Client progress is weighted by active project fees, with a simple average when all fees are zero.
 - Custom email-code sign-in powered by WorkOS, with individual accounts, organization membership, and server-enforced roles.
 - Admin console: invite teammates, change roles, suspend/restore access, and revoke pending invitations.
+
+## Approvals and design changes upgrade
+
+Run `bun run db:migrate` before starting the updated CRM. Migration `0006_redundant_slayback` creates project decision records, with indexed project/client references and constraints for approved revisions, decision dates, and change impacts. Existing records are unchanged. Members/admins manage decisions; viewers can read them. A decision remains attached to its original project. Approved decisions require an approved revision and a decision date; rejected or withdrawn decisions also require a date. To preserve earlier revision decisions, create a new entry when requesting approval of a later revision.
 
 ## Project workspace upgrade
 

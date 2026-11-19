@@ -47,7 +47,26 @@ export type ProjectFile = {
   title: string;
   url: string;
 };
+export type ProjectDecision = {
+  id: string;
+  companyId: string;
+  projectId: string;
+  title: string;
+  kind: (typeof import("./decisions").DECISION_KINDS)[number];
+  phase: ProjectPhase;
+  description: string;
+  decisionMaker: string;
+  dueDate: string;
+  revision: string;
+  status: (typeof import("./decisions").DECISION_STATUSES)[number];
+  approvedRevision: string;
+  decisionDate: string | null;
+  decisionNote: string;
+  additionalFee: string;
+  scheduleImpactDays: number;
+};
 export type CrmSnapshot = {
+  projectDecisions: ProjectDecision[];
   projectFiles: ProjectFile[];
   companies: CrmCompany[];
   contacts: Contact[];

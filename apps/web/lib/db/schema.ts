@@ -1,3 +1,4 @@
+import { DECISION_KINDS, DECISION_STATUSES } from "../crm/decisions";
 import { PROJECT_PHASES } from "../crm/projects";
 import { sql } from "drizzle-orm";
 import {
@@ -239,5 +240,68 @@ export const projectFiles = pgTable(
       foreignColumns: [deals.id, deals.companyId],
       name: "project_files_project_client_fk",
     }),
+  ],
+);
+
+export const decisionKind = pgEnum("decision_kind", DECISION_KINDS);
+export const decisionStatus = pgEnum("decision_status", DECISION_STATUSES);
+
+export const projectDecisions = pgTable(
+  "project_decisions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => deals.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    kind: decisionKind("kind").notNull(),
+    phase: dealStage("phase").notNull(),
+    description: text("description").notNull().default(""),
+    decisionMaker: text("decision_maker").notNull(),
+    dueDate: date("due_date").notNull(),
+    revision: text("revision").notNull(),
+    status: decisionStatus("status").notNull().default("Pending"),
+    approvedRevision: text("approved_revision").notNull().default(""),
+    decisionDate: date("decision_date"),
+    decisionNote: text("decision_note").notNull().default(""),
+    additionalFee: numeric("additional_fee", { precision: 14, scale: 2 })
+      .notNull()
+      .default("0"),
+    scheduleImpactDays: integer("schedule_impact_days").notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [
+    index("project_decisions_company_idx").on(t.companyId),
+    index("project_decisions_project_idx").on(t.projectId),
+    index("project_decisions_due_idx").on(t.status, t.dueDate),
+    foreignKey({
+      columns: [t.projectId, t.companyId],
+      foreignColumns: [deals.id, deals.companyId],
+      name: "project_decisions_project_client_fk",
+    }),
+    check(
+      "decision_required_text",
+      sql`length(trim(${t.title})) > 0 and length(trim(${t.decisionMaker})) > 0 and length(trim(${t.revision})) > 0`,
+    ),
+    check(
+      "decision_approved_revision",
+      sql`(${t.status} = 'Approved' and length(trim(${t.approvedRevision})) > 0) or (${t.status} <> 'Approved' and ${t.approvedRevision} = '')`,
+    ),
+    check(
+      "decision_date_matches_status",
+      sql`(${t.status} = 'Pending' and ${t.decisionDate} is null) or (${t.status} <> 'Pending' and ${t.decisionDate} is not null)`,
+    ),
+    check("decision_fee_nonnegative", sql`${t.additionalFee} >= 0`),
+    check(
+      "decision_schedule_range",
+      sql`${t.scheduleImpactDays} between -3650 and 3650`,
+    ),
+    check(
+      "decision_change_impacts_only",
+      sql`${t.kind} = 'Design change' or (${t.additionalFee} = 0 and ${t.scheduleImpactDays} = 0)`,
+    ),
   ],
 );

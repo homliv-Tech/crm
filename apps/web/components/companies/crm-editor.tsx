@@ -15,6 +15,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/_ui/dialog";
+import DecisionFields from "./decision-fields";
 import Button from "@/components/_ui/button";
 import { Input } from "@/components/_ui/input";
 import { PROJECT_PHASES } from "@/lib/crm/projects";
@@ -33,6 +34,7 @@ const EditorContext = createContext<(editor: Editor) => void>(() => {});
 export const useCrmEditor = () => useContext(EditorContext);
 const labels: Record<Entity, string> = {
   projectFiles: "file link",
+  projectDecisions: "approval or design change",
   companies: "client",
   contacts: "contact",
   deals: "project",
@@ -176,7 +178,10 @@ function RecordForm({
                     setSelectedClient(e.target.value);
                     setSelectedProject("");
                   }}
-                  disabled={Boolean(projectId) || (entity === "deals" && edit)}
+                  disabled={
+                    Boolean(projectId) ||
+                    (["deals", "projectDecisions"].includes(entity) && edit)
+                  }
                 >
                   {companies.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -184,7 +189,8 @@ function RecordForm({
                     </option>
                   ))}
                 </select>
-                {(Boolean(projectId) || (entity === "deals" && edit)) && (
+                {(Boolean(projectId) ||
+                  (["deals", "projectDecisions"].includes(entity) && edit)) && (
                   <input
                     type="hidden"
                     name="companyId"
@@ -193,20 +199,27 @@ function RecordForm({
                 )}
               </label>
             )}
-            {["tasks", "contacts", "activities", "projectFiles"].includes(
-              entity,
-            ) && (
+            {[
+              "tasks",
+              "contacts",
+              "activities",
+              "projectFiles",
+              "projectDecisions",
+            ].includes(entity) && (
               <label className="flex flex-col gap-2 text-sm">
                 Project
                 <select
                   name="projectId"
                   className={selectClass}
                   value={selectedProject}
-                  required={entity === "projectFiles"}
+                  required={
+                    entity === "projectFiles" || entity === "projectDecisions"
+                  }
+                  disabled={entity === "projectDecisions" && edit}
                   onChange={(e) => setSelectedProject(e.target.value)}
                 >
                   <option value="">
-                    {entity === "projectFiles"
+                    {["projectFiles", "projectDecisions"].includes(entity)
                       ? "Choose a project"
                       : "Client only"}
                   </option>
@@ -218,7 +231,21 @@ function RecordForm({
                       </option>
                     ))}
                 </select>
+                {entity === "projectDecisions" && edit && (
+                  <input
+                    type="hidden"
+                    name="projectId"
+                    value={selectedProject}
+                  />
+                )}
               </label>
+            )}
+            {entity === "projectDecisions" && (
+              <DecisionFields
+                record={record}
+                inputClass={selectClass}
+                phase={projects.find((p) => p.id === selectedProject)?.stage}
+              />
             )}
             {entity === "projectFiles" && (
               <>
@@ -366,9 +393,9 @@ function RecordForm({
                 <p>
                   Delete this {labels[entity]}?{" "}
                   {entity === "deals" &&
-                    "File links will be removed. Tasks, contacts, and correspondence will remain with the client."}
+                    "File links, approvals, and design changes will be removed. Tasks, contacts, and correspondence will remain with the client."}
                   {entity === "companies" &&
-                    "Its contacts, projects, tasks, correspondence, and file links will also be deleted."}
+                    "Its contacts, projects, tasks, correspondence, file links, approvals, and design changes will also be deleted."}
                 </p>
                 <div className="mt-3 flex gap-2">
                   <Button

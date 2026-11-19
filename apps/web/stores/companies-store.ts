@@ -13,6 +13,7 @@ type CompaniesState = {
   tasks: CrmSnapshot["tasks"];
   activities: CrmSnapshot["activities"];
   projectFiles: CrmSnapshot["projectFiles"];
+  projectDecisions: CrmSnapshot["projectDecisions"];
   accessState: "checking" | "allowed" | "denied" | "unavailable";
   accessEpoch: number;
   checkAccess: (hide?: boolean) => Promise<boolean>;
@@ -72,6 +73,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   tasks: [],
   activities: [],
   projectFiles: [],
+  projectDecisions: [],
   accessState: "checking",
   accessEpoch: 0,
   canWrite: false,
@@ -90,6 +92,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       tasks: [],
       activities: [],
       projectFiles: [],
+      projectDecisions: [],
       canWrite: false,
       loading: false,
       saving: false,
@@ -221,6 +224,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       tasks: "Task",
       activities: "Activity",
       projectFiles: "File link",
+      projectDecisions: "Decision",
     }[entity];
     const name = String(
       record.name || record.title || record.body || "",
