@@ -5,7 +5,12 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { eq } from "drizzle-orm";
 import * as tables from "../lib/db/schema";
-import { taskInput, projectFileInput } from "../lib/crm/validation";
+import {
+  taskInput,
+  contactInput,
+  activityInput,
+  projectFileInput,
+} from "../lib/crm/validation";
 import { createQuotation } from "@crm/quotations/quotation";
 import { createQuotationHandlers } from "../lib/crm/quotation-handlers";
 import type { getDb } from "../lib/db";
@@ -173,7 +178,7 @@ test("project references and file URLs are validated", () => {
     owner: "Architect",
     dueDate: "2026-12-01",
   };
-  assert.equal(taskInput.parse(task).projectId, null);
+  assert.equal(taskInput.parse(task).projectId, undefined);
   assert.equal(taskInput.parse({ ...task, projectId: "" }).projectId, null);
   assert.equal(
     taskInput.safeParse({ ...task, projectId: "invalid" }).success,
@@ -191,4 +196,76 @@ test("project references and file URLs are validated", () => {
       .success,
     true,
   );
+});
+
+test("omitted project assignments survive updates while explicit empty values unlink records", async () => {
+  const client = new PGlite();
+  try {
+    const db = drizzle(client);
+    await migrate(db, { migrationsFolder: "./drizzle" });
+    const [company] = await db
+      .insert(tables.companies)
+      .values({ name: "Client", owner: "Architect" })
+      .returning();
+    const [project] = await db
+      .insert(tables.deals)
+      .values({ companyId: company.id, title: "Home", owner: "Architect" })
+      .returning();
+    const cases = [
+      {
+        table: tables.tasks,
+        schema: taskInput,
+        input: {
+          companyId: company.id,
+          title: "Review plans",
+          owner: "Architect",
+          dueDate: "2026-12-01",
+        },
+      },
+      {
+        table: tables.contacts,
+        schema: contactInput,
+        input: { companyId: company.id, name: "Engineer" },
+      },
+      {
+        table: tables.activities,
+        schema: activityInput,
+        input: {
+          companyId: company.id,
+          type: "Meeting",
+          body: "Concept review",
+        },
+      },
+    ];
+    for (const { table, schema, input } of cases) {
+      const omitted = schema.parse(input);
+      assert.equal(omitted.projectId, undefined);
+      const [unassigned] = await db.insert(table).values(omitted).returning();
+      assert.equal(unassigned.projectId, null, "create defaults to no project");
+      const [assigned] = await db
+        .insert(table)
+        .values(schema.parse({ ...input, projectId: project.id }))
+        .returning();
+      const [preserved] = await db
+        .update(table)
+        .set(omitted)
+        .where(eq(table.id, assigned.id))
+        .returning();
+      assert.equal(preserved.projectId, project.id);
+      for (const projectId of ["", null]) {
+        await db
+          .update(table)
+          .set(schema.parse({ ...input, projectId: project.id }))
+          .where(eq(table.id, assigned.id));
+        const [cleared] = await db
+          .update(table)
+          .set(schema.parse({ ...input, projectId }))
+          .where(eq(table.id, assigned.id))
+          .returning();
+        assert.equal(cleared.projectId, null);
+      }
+    }
+  } finally {
+    await client.close();
+  }
 });

@@ -50,7 +50,8 @@ export const companyCreateInput = companyInput.refine(
 const projectReference = z
   .union([z.uuid(), z.literal("")])
   .nullish()
-  .transform((v) => v || null);
+  // Drizzle skips undefined on updates; only explicit empty values unlink projects.
+  .transform((v) => (v === "" ? null : v));
 export const contactInput = z.object({
   companyId: z.uuid(),
   projectId: projectReference,
