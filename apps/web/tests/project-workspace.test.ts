@@ -151,20 +151,24 @@ test("project quotations match UUID casing and exclude client-only and sibling-p
       ...projects.map((p) => p.id),
       uppercaseProjectId,
     ]) {
-      const document = createQuotation();
-      document.crm = { companyId: company.id, projectId, contactId: null };
-      const saved = await handlers.POST(
-        new Request("https://crm.example/api/quotations", {
-          method: "POST",
-          headers: {
-            origin: "https://crm.example",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ document, version: 0 }),
-        }),
-      );
-      assert.equal(saved.status, 200);
+      for (const status of ["Draft", "Sent", "Accepted", "Declined"] as const) {
+        const document = createQuotation();
+        document.status = status;
+        document.crm = { companyId: company.id, projectId, contactId: null };
+        const saved = await handlers.POST(
+          new Request("https://crm.example/api/quotations", {
+            method: "POST",
+            headers: {
+              origin: "https://crm.example",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ document, version: 0 }),
+          }),
+        );
+        assert.equal(saved.status, 200);
+      }
     }
+
     for (const projectId of [projects[0].id, uppercaseProjectId]) {
       const response = await handlers.GET(
         new Request(
@@ -173,7 +177,7 @@ test("project quotations match UUID casing and exclude client-only and sibling-p
       );
       assert.equal(response.status, 200);
       const { quotations } = await response.json();
-      assert.equal(quotations.length, 2);
+      assert.equal(quotations.length, 8);
       assert.deepEqual(
         quotations
           .map(
@@ -181,8 +185,31 @@ test("project quotations match UUID casing and exclude client-only and sibling-p
               q.document.crm.projectId,
           )
           .sort(),
-        [projects[0].id, uppercaseProjectId].sort(),
+        [
+          ...Array(4).fill(projects[0].id),
+          ...Array(4).fill(uppercaseProjectId),
+        ].sort(),
       );
+      for (const status of ["active", "Accepted", "Declined"]) {
+        const response = await handlers.GET(
+          new Request(
+            `https://crm.example/api/quotations?companyId=${company.id}&projectId=${projectId}&status=${status}`,
+          ),
+        );
+        assert.equal(response.status, 200);
+        const summaries = (await response.json()).quotations;
+        const expected = quotations.filter(
+          (q: { document: { status: string } }) =>
+            status === "active"
+              ? ["Draft", "Sent"].includes(q.document.status)
+              : q.document.status === status,
+        );
+        assert.deepEqual(
+          summaries.map((q: { id: string }) => q.id).sort(),
+          expected.map((q: { id: string }) => q.id).sort(),
+        );
+        assert.ok(summaries.every((q: object) => !("document" in q)));
+      }
     }
     const otherClient = await handlers.GET(
       new Request(
@@ -193,7 +220,7 @@ test("project quotations match UUID casing and exclude client-only and sibling-p
     const all = await handlers.GET(
       new Request(`https://crm.example/api/quotations?companyId=${company.id}`),
     );
-    assert.equal((await all.json()).quotations.length, 4);
+    assert.equal((await all.json()).quotations.length, 16);
   } finally {
     await client.close();
   }
