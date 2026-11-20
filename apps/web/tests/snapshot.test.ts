@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { eq } from "drizzle-orm";
 import { mock, test } from "node:test";
 import { neon, type NeonQueryPromise } from "@neondatabase/serverless";
 import { PGlite } from "@electric-sql/pglite";
@@ -73,6 +74,13 @@ test("CRM snapshot reads share a read-only Repeatable Read transaction", async (
         receivedDate: "2026-11-19",
         method: "UPI",
       });
+    await db
+      .insert(schema.phaseSchedules)
+      .values({
+        companyId: company.id,
+        projectId: project.id,
+        phase: "Briefing",
+      });
     const completedAt = new Date("2026-11-19T12:00:00Z");
     await db
       .insert(schema.projectDeliverables)
@@ -97,6 +105,8 @@ test("CRM snapshot reads share a read-only Repeatable Read transaction", async (
     assert.equal(transport.mock.callCount(), 1);
     assert.equal(snapshot.companies[0].id, company.id);
     assert.equal(snapshot.deals[0].id, project.id);
+    assert.match(snapshot.phaseSchedules[0].rowVersion, /^[0-9]+$/);
+    assert.match(snapshot.projectDeliverables[0].rowVersion, /^[0-9]+$/);
     assert.equal(snapshot.feeMilestones[0].id, milestone.id);
     assert.equal(snapshot.feeMilestones[0].receivedAmount, "25.00");
     assert.equal(snapshot.paymentReceipts[0].amount, "25.00");
@@ -117,10 +127,20 @@ test("CRM snapshot reads share a read-only Repeatable Read transaction", async (
         receivedDate: "2026-11-20",
         method: "UPI",
       });
+    await db
+      .update(schema.projectDeliverables)
+      .set({ notes: "Updated after the first snapshot" })
+      .where(
+        eq(schema.projectDeliverables.id, snapshot.projectDeliverables[0].id),
+      );
     const refreshed = await getSnapshot(readDb);
     assert.equal(transport.mock.callCount(), 2);
     assert.equal(refreshed.feeMilestones[0].receivedAmount, "35.00");
     assert.equal(refreshed.paymentReceipts.length, 2);
+    assert.notEqual(
+      refreshed.projectDeliverables[0].rowVersion,
+      snapshot.projectDeliverables[0].rowVersion,
+    );
   } finally {
     transport.mock.restore();
     await postgres.close();

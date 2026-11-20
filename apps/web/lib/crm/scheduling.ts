@@ -92,6 +92,11 @@ const assignee = z
   .nullish()
   .transform((v) => v || null);
 const notes = z.string().trim().max(10000).default("");
+export const schedulingPatchVersionInput = z.object({
+  rowVersion: z
+    .string({ error: "Reload this record before saving." })
+    .regex(/^[0-9]{1,10}$/, "Invalid record version."),
+});
 export const phaseScheduleInput = z
   .object({
     companyId: uuid,

@@ -30,3 +30,14 @@ export function resolveSchedulingAssignment({
       assigneeId === fallback?.assigneeId ? (fallback.assigneeName ?? "") : "",
   };
 }
+
+// Capture primitive version data once, alongside the form's initial field values.
+export function captureSchedulingEditVersion(
+  entity: string,
+  record: { id?: unknown; rowVersion?: unknown },
+) {
+  return record.id &&
+    (entity === "phaseSchedules" || entity === "projectDeliverables")
+    ? { rowVersion: record.rowVersion }
+    : {};
+}
