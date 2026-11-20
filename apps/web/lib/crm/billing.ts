@@ -93,6 +93,16 @@ export const paymentReceiptInput = z
       });
   });
 
+export function receiptAmountDefault(
+  record: { id?: unknown; milestoneId?: unknown; amount?: unknown },
+  selectedMilestoneId: string,
+  balance: unknown,
+): string {
+  const useRecordedAmount =
+    Boolean(record.id) || record.milestoneId === selectedMilestoneId;
+  return String((useRecordedAmount ? record.amount : undefined) ?? balance);
+}
+
 export function feeCents(value: string): bigint {
   const [whole, fraction = ""] = value.split(".");
   return BigInt(whole) * BigInt(100) + BigInt(fraction.padEnd(2, "0"));

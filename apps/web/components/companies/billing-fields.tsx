@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { Input } from "@/components/_ui/input";
 import { useCompaniesStore } from "@/stores/companies-store";
-import { PAYMENT_METHODS, feeCents } from "@/lib/crm/billing";
+import {
+  PAYMENT_METHODS,
+  feeCents,
+  receiptAmountDefault,
+} from "@/lib/crm/billing";
 import { localDateKey } from "@/lib/crm/format";
 import { PROJECT_PHASES } from "@/lib/crm/projects";
 
@@ -78,7 +82,11 @@ export default function BillingFields({
           name={name}
           type={type}
           required={required}
-          defaultValue={String(record[name] ?? fallback)}
+          defaultValue={
+            name === "amount" && entity === "paymentReceipts"
+              ? receiptAmountDefault(record, milestoneId, fallback)
+              : String(record[name] ?? fallback)
+          }
           maxLength={type === "text" ? 200 : undefined}
           min={type === "number" ? "0.01" : undefined}
           max={type === "number" ? "999999999999.99" : undefined}

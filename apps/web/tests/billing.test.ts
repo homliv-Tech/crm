@@ -12,6 +12,7 @@ import {
   paymentReceiptInput,
   feeCents,
   feeMoney,
+  receiptAmountDefault,
   milestoneStatus,
   summarizeFees,
 } from "../lib/crm/billing";
@@ -41,6 +42,22 @@ function request(
     body: JSON.stringify(body),
   });
 }
+
+test("new receipt amounts follow milestone changes while existing receipts retain their stored amount", () => {
+  const draft = { milestoneId: "advance", amount: "50.00" };
+  assert.equal(receiptAmountDefault(draft, "advance", "75.00"), "50.00");
+  assert.equal(receiptAmountDefault(draft, "concept", "100.00"), "100.00");
+  assert.equal(receiptAmountDefault(draft, "advance", "75.00"), "50.00");
+  assert.equal(receiptAmountDefault(draft, "", "0.00"), "0.00");
+  assert.equal(receiptAmountDefault({}, "concept", "100.00"), "100.00");
+  assert.equal(
+    receiptAmountDefault({ ...draft, amount: null }, "advance", "75.00"),
+    "75.00",
+  );
+  const saved = { ...draft, id: "receipt" };
+  assert.equal(receiptAmountDefault(saved, "advance", "0.00"), "50.00");
+  assert.equal(receiptAmountDefault(saved, "concept", "100.00"), "50.00");
+});
 
 test("billing validates money, invoice pairs, and void reasons without losing paise", () => {
   assert.equal(feeMilestoneInput.parse(milestone).amount, "100.10");
