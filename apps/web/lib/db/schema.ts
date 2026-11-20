@@ -1,3 +1,4 @@
+import { COORDINATION_ROLES, SUBMISSION_STATUSES } from "../crm/coordination";
 import { PAYMENT_METHODS, RECEIPT_STATUSES } from "../crm/billing";
 import { DECISION_KINDS, DECISION_STATUSES } from "../crm/decisions";
 import { PROJECT_PHASES, type DeliveryPhase } from "../crm/projects";
@@ -480,5 +481,71 @@ export const projectDeliverables = pgTable(
       "deliverable_template_pair",
       sql`(${t.templateKey} is null and ${t.templateItemKey} is null) or (${t.templateKey} is not null and ${t.templateItemKey} is not null)`,
     ),
+  ],
+);
+
+export const coordinationRole = pgEnum("coordination_role", COORDINATION_ROLES);
+export const submissionStatus = pgEnum(
+  "submission_status",
+  SUBMISSION_STATUSES,
+);
+export const projectPartners = pgTable(
+  "project_partners",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull(),
+    projectId: uuid("project_id").notNull(),
+    name: text("name").notNull(),
+    firm: text("firm").notNull().default(""),
+    role: coordinationRole("role").notNull(),
+    email: text("email").notNull().default(""),
+    phone: text("phone").notNull().default(""),
+    responsibilities: text("responsibilities").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    unique("project_partners_scope_unique").on(t.id, t.projectId, t.companyId),
+    index("project_partners_company_idx").on(t.companyId),
+    index("project_partners_project_idx").on(t.projectId),
+    foreignKey({
+      columns: [t.projectId, t.companyId],
+      foreignColumns: [deals.id, deals.companyId],
+      name: "project_partners_project_fk",
+    }).onDelete("cascade"),
+    check(
+      "partner_required_text",
+      sql`length(trim(${t.name})) > 0 and length(trim(${t.responsibilities})) > 0`,
+    ),
+  ],
+);
+export const projectSubmissions = pgTable(
+  "project_submissions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull(),
+    projectId: uuid("project_id").notNull(),
+    partnerId: uuid("partner_id").notNull(),
+    title: text("title").notNull(),
+    dueDate: date("due_date").notNull(),
+    status: submissionStatus("status").notNull().default("Pending"),
+    url: text("url").notNull().default(""),
+    notes: text("notes").notNull().default(""),
+    ...timestamps,
+  },
+  (t) => [
+    index("project_submissions_company_idx").on(t.companyId),
+    index("project_submissions_project_idx").on(t.projectId),
+    index("project_submissions_partner_idx").on(t.partnerId),
+    index("project_submissions_due_idx").on(t.status, t.dueDate),
+    foreignKey({
+      columns: [t.partnerId, t.projectId, t.companyId],
+      foreignColumns: [
+        projectPartners.id,
+        projectPartners.projectId,
+        projectPartners.companyId,
+      ],
+      name: "project_submissions_partner_scope_fk",
+    }).onDelete("cascade"),
+    check("submission_title_required", sql`length(trim(${t.title})) > 0`),
   ],
 );

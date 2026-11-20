@@ -7,6 +7,8 @@ import { isRole } from "@/lib/access-policy";
 import { DEFAULT_FILTERS } from "@/lib/companies";
 
 type CompaniesState = {
+  projectPartners: CrmSnapshot["projectPartners"];
+  projectSubmissions: CrmSnapshot["projectSubmissions"];
   companies: CrmSnapshot["companies"];
   contacts: CrmSnapshot["contacts"];
   deals: CrmSnapshot["deals"];
@@ -71,6 +73,8 @@ type CompaniesState = {
 };
 
 export const useCompaniesStore = create<CompaniesState>((set, get) => ({
+  projectPartners: [],
+  projectSubmissions: [],
   companies: [],
   contacts: [],
   deals: [],
@@ -94,6 +98,8 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       accessState,
       accessEpoch: state.accessEpoch + 1,
       error,
+      projectPartners: [],
+      projectSubmissions: [],
       companies: [],
       contacts: [],
       deals: [],
@@ -230,6 +236,8 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
     const existing = get()[entity].find((record) => record.id === input.id);
     const record = { ...existing, ...input } as Record<string, unknown>;
     const label = {
+      projectPartners: "Project partner",
+      projectSubmissions: "Submission",
       companies: "Client",
       contacts: "Contact",
       deals: "Project",

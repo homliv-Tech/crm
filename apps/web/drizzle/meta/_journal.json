@@ -64,6 +64,13 @@
       "when": 1795113517050,
       "tag": "0008_soft_titania",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795199665321,
+      "tag": "0009_thick_chat",
+      "breakpoints": true
     }
   ]
 }

@@ -16,6 +16,7 @@ import {
   DialogFooter,
 } from "@/components/_ui/dialog";
 import { captureSchedulingEditVersion } from "@/lib/crm/scheduling-assignment";
+import CoordinationFields from "./coordination-fields";
 import SchedulingFields from "./scheduling-fields";
 import BillingFields from "./billing-fields";
 import DecisionFields from "./decision-fields";
@@ -36,6 +37,8 @@ type Editor = {
 const EditorContext = createContext<(editor: Editor) => void>(() => {});
 export const useCrmEditor = () => useContext(EditorContext);
 const labels: Record<Entity, string> = {
+  projectPartners: "project partner",
+  projectSubmissions: "submission",
   phaseSchedules: "phase schedule",
   projectDeliverables: "deliverable",
   feeMilestones: "fee milestone",
@@ -202,6 +205,8 @@ function RecordForm({
                       "paymentReceipts",
                       "phaseSchedules",
                       "projectDeliverables",
+                      "projectPartners",
+                      "projectSubmissions",
                     ].includes(entity) &&
                       edit)
                   }
@@ -220,6 +225,8 @@ function RecordForm({
                     "paymentReceipts",
                     "phaseSchedules",
                     "projectDeliverables",
+                    "projectPartners",
+                    "projectSubmissions",
                   ].includes(entity) &&
                     edit)) && (
                   <input
@@ -240,6 +247,8 @@ function RecordForm({
               "paymentReceipts",
               "phaseSchedules",
               "projectDeliverables",
+              "projectPartners",
+              "projectSubmissions",
             ].includes(entity) && (
               <label className="flex flex-col gap-2 text-sm">
                 Project
@@ -254,6 +263,8 @@ function RecordForm({
                     "paymentReceipts",
                     "phaseSchedules",
                     "projectDeliverables",
+                    "projectPartners",
+                    "projectSubmissions",
                   ].includes(entity)}
                   disabled={
                     [
@@ -262,6 +273,8 @@ function RecordForm({
                       "paymentReceipts",
                       "phaseSchedules",
                       "projectDeliverables",
+                      "projectPartners",
+                      "projectSubmissions",
                     ].includes(entity) &&
                     (edit || Boolean(projectId))
                   }
@@ -275,6 +288,8 @@ function RecordForm({
                       "paymentReceipts",
                       "phaseSchedules",
                       "projectDeliverables",
+                      "projectPartners",
+                      "projectSubmissions",
                     ].includes(entity)
                       ? "Choose a project"
                       : "Client only"}
@@ -293,6 +308,8 @@ function RecordForm({
                   "paymentReceipts",
                   "phaseSchedules",
                   "projectDeliverables",
+                  "projectPartners",
+                  "projectSubmissions",
                 ].includes(entity) &&
                   (edit || Boolean(projectId)) && (
                     <input
@@ -328,6 +345,16 @@ function RecordForm({
                 record={record}
                 inputClass={selectClass}
                 phase={projects.find((p) => p.id === selectedProject)?.stage}
+              />
+            )}
+            {(entity === "projectPartners" ||
+              entity === "projectSubmissions") && (
+              <CoordinationFields
+                key={`${entity}-${selectedProject}`}
+                entity={entity}
+                record={record}
+                projectId={selectedProject}
+                inputClass={selectClass}
               />
             )}
             {entity === "projectFiles" && (
@@ -475,12 +502,14 @@ function RecordForm({
               <div className="rounded-lg border border-red-400/40 p-3 text-sm">
                 <p>
                   Delete this {labels[entity]}?{" "}
+                  {entity === "projectPartners" &&
+                    "All submissions assigned to this partner will also be deleted."}
                   {entity === "phaseSchedules" &&
                     "Its dates and phase lead will be removed. Deliverables will remain."}
                   {entity === "deals" &&
-                    "File links, approvals, design changes, fee milestones, receipts, phase schedules, and deliverables will be removed. Tasks, contacts, and correspondence will remain with the client."}
+                    "File links, approvals, design changes, fee milestones, receipts, phase schedules, deliverables, coordination partners, and submissions will be removed. Tasks, contacts, and correspondence will remain with the client."}
                   {entity === "companies" &&
-                    "Its contacts, projects, tasks, correspondence, file links, approvals, design changes, fee milestones, receipts, phase schedules, and deliverables will also be deleted."}
+                    "Its contacts, projects, tasks, correspondence, file links, approvals, design changes, fee milestones, receipts, phase schedules, deliverables, coordination partners, and submissions will also be deleted."}
                 </p>
                 <div className="mt-3 flex gap-2">
                   <Button

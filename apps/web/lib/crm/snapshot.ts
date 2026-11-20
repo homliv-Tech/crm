@@ -18,6 +18,8 @@ export async function getSnapshot(db = getDb()): Promise<CrmSnapshot> {
     tasks,
     activities,
     projectFiles,
+    projectPartners,
+    projectSubmissions,
   ] = await db.batch([
     // Neon HTTP batches share a transaction, but default to per-statement snapshots.
     db.execute(sql`set transaction isolation level repeatable read read only`),
@@ -71,6 +73,14 @@ export async function getSnapshot(db = getDb()): Promise<CrmSnapshot> {
       .select()
       .from(schema.projectFiles)
       .orderBy(desc(schema.projectFiles.createdAt)),
+    db
+      .select()
+      .from(schema.projectPartners)
+      .orderBy(schema.projectPartners.name),
+    db
+      .select()
+      .from(schema.projectSubmissions)
+      .orderBy(schema.projectSubmissions.dueDate),
   ]);
   const serializedActivities = activities.map((a) => ({
     ...a,
@@ -79,6 +89,8 @@ export async function getSnapshot(db = getDb()): Promise<CrmSnapshot> {
   return {
     companies: summarizeCompanies(companies, deals, serializedActivities),
     contacts,
+    projectPartners,
+    projectSubmissions,
     phaseSchedules,
     projectDeliverables: projectDeliverables.map((d) => ({
       ...d,
