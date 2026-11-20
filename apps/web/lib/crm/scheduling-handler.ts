@@ -6,6 +6,7 @@ import { deals, phaseSchedules, projectDeliverables } from "@/lib/db/schema";
 import { DELIVERY_PHASES } from "./projects";
 import {
   applyChecklistInput,
+  schedulingPatchVersionInput,
   CHECKLIST_STARTERS,
   phaseScheduleInput,
   projectDeliverableInput,
@@ -61,6 +62,10 @@ export function createSchedulingHandler(
       const body = z.record(z.string(), z.unknown()).parse(JSON.parse(raw));
       const id =
         request.method === "POST" ? undefined : z.uuid().parse(body.id);
+      const submittedVersion =
+        request.method === "PATCH"
+          ? schedulingPatchVersionInput.parse(body).rowVersion
+          : undefined;
       const db = getDb();
       const table =
         entity === "phaseSchedules" ? phaseSchedules : projectDeliverables;
@@ -125,6 +130,11 @@ export function createSchedulingHandler(
               .where(eq(phaseSchedules.id, id))
           : [];
         if (id && !old) return fail("Phase schedule no longer exists.", 404);
+        if (old && submittedVersion !== old.rowVersion)
+          return fail(
+            "Phase schedule changed since it was opened. Refresh the workspace and reopen it before saving.",
+            409,
+          );
         const data = phaseScheduleInput.parse({ ...old, ...body });
         if (
           old &&
@@ -159,14 +169,20 @@ export function createSchedulingHandler(
                   sql`${phaseSchedules}.xmin::text = ${old!.rowVersion}`,
                 ),
               )
-              .returning({ id: phaseSchedules.id })
+              .returning({
+                id: phaseSchedules.id,
+                rowVersion: sql<string>`${phaseSchedules}.xmin::text`,
+              })
           : await db
               .insert(phaseSchedules)
               .values({ ...data, ...owner })
-              .returning({ id: phaseSchedules.id });
+              .returning({
+                id: phaseSchedules.id,
+                rowVersion: sql<string>`${phaseSchedules}.xmin::text`,
+              });
         return rows.length
           ? Response.json(
-              { ok: true, id: rows[0].id },
+              { ok: true, id: rows[0].id, rowVersion: rows[0].rowVersion },
               { status: id ? 200 : 201 },
             )
           : fail(
@@ -184,6 +200,11 @@ export function createSchedulingHandler(
             .where(eq(projectDeliverables.id, id))
         : [];
       if (id && !old) return fail("Deliverable no longer exists.", 404);
+      if (old && submittedVersion !== old.rowVersion)
+        return fail(
+          "Deliverable changed since it was opened. Refresh the workspace and reopen it before saving.",
+          409,
+        );
       const data = projectDeliverableInput.parse({ ...old, ...body });
       if (
         old &&
@@ -216,14 +237,20 @@ export function createSchedulingHandler(
                 sql`${projectDeliverables}.xmin::text = ${old!.rowVersion}`,
               ),
             )
-            .returning({ id: projectDeliverables.id })
+            .returning({
+              id: projectDeliverables.id,
+              rowVersion: sql<string>`${projectDeliverables}.xmin::text`,
+            })
         : await db
             .insert(projectDeliverables)
             .values(values)
-            .returning({ id: projectDeliverables.id });
+            .returning({
+              id: projectDeliverables.id,
+              rowVersion: sql<string>`${projectDeliverables}.xmin::text`,
+            });
       return rows.length
         ? Response.json(
-            { ok: true, id: rows[0].id },
+            { ok: true, id: rows[0].id, rowVersion: rows[0].rowVersion },
             { status: id ? 200 : 201 },
           )
         : fail("Deliverable changed while saving. Refresh and try again.", 409);

@@ -1,4 +1,4 @@
-import { desc, sql } from "drizzle-orm";
+import { desc, getTableColumns, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { summarizeCompanies } from "./summaries";
@@ -22,11 +22,17 @@ export async function getSnapshot(db = getDb()): Promise<CrmSnapshot> {
     // Neon HTTP batches share a transaction, but default to per-statement snapshots.
     db.execute(sql`set transaction isolation level repeatable read read only`),
     db
-      .select()
+      .select({
+        ...getTableColumns(schema.phaseSchedules),
+        rowVersion: sql<string>`${schema.phaseSchedules}.xmin::text`,
+      })
       .from(schema.phaseSchedules)
       .orderBy(schema.phaseSchedules.createdAt),
     db
-      .select()
+      .select({
+        ...getTableColumns(schema.projectDeliverables),
+        rowVersion: sql<string>`${schema.projectDeliverables}.xmin::text`,
+      })
       .from(schema.projectDeliverables)
       .orderBy(
         schema.projectDeliverables.createdAt,

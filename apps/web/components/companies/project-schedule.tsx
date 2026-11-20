@@ -82,6 +82,7 @@ export default function ProjectSchedule({
             onChange={(e) =>
               void state.mutate("projectDeliverables", "PATCH", {
                 id: d.id,
+                rowVersion: d.rowVersion,
                 completed: e.target.checked,
               })
             }

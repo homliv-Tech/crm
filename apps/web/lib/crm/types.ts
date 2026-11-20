@@ -94,6 +94,7 @@ export type PaymentReceipt = {
   voidReason: string;
 };
 export type PhaseSchedule = {
+  rowVersion: string;
   id: string;
   companyId: string;
   projectId: string;
@@ -107,6 +108,7 @@ export type PhaseSchedule = {
   notes: string;
 };
 export type ProjectDeliverable = {
+  rowVersion: string;
   id: string;
   companyId: string;
   projectId: string;

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { resolveSchedulingAssignment } from "../lib/crm/scheduling-assignment";
+import {
+  captureSchedulingEditVersion,
+  resolveSchedulingAssignment,
+} from "../lib/crm/scheduling-assignment";
 
 const defaults = {
   followPhaseLead: true,
@@ -75,5 +78,21 @@ test("editing an existing assignment keeps its teammate when the phase changes",
       original: { assigneeId: "", assigneeName: "Unassigned" },
     }).assigneeId,
     "",
+  );
+});
+
+test("schedule editors capture the opening version instead of a subsequently refreshed version", () => {
+  for (const entity of ["phaseSchedules", "projectDeliverables"]) {
+    const record = { id: "record", rowVersion: "41" };
+    const captured = captureSchedulingEditVersion(entity, record);
+    record.rowVersion = "42";
+    assert.equal(captured.rowVersion, "41");
+    assert.equal({ ...record, ...captured }.rowVersion, "41");
+    assert.equal(captureSchedulingEditVersion(entity, record).rowVersion, "42");
+    assert.deepEqual(captureSchedulingEditVersion(entity, {}), {});
+  }
+  assert.deepEqual(
+    captureSchedulingEditVersion("tasks", { id: "task", rowVersion: "41" }),
+    {},
   );
 });

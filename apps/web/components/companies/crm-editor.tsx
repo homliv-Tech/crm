@@ -15,6 +15,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/_ui/dialog";
+import { captureSchedulingEditVersion } from "@/lib/crm/scheduling-assignment";
 import SchedulingFields from "./scheduling-fields";
 import BillingFields from "./billing-fields";
 import DecisionFields from "./decision-fields";
@@ -90,6 +91,9 @@ function RecordForm({
   const mutate = useCompaniesStore((s) => s.mutate);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editVersion] = useState(() =>
+    captureSchedulingEditVersion(entity, record),
+  );
   const edit = Boolean(record.id);
   const title = `${edit ? "Edit" : "New"} ${labels[entity]}`;
 
@@ -97,7 +101,11 @@ function RecordForm({
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const values = Object.fromEntries(formData);
-    const data: RecordData = { ...values, ...(edit ? { id: record.id } : {}) };
+    const data: RecordData = {
+      ...values,
+      ...(edit ? { id: record.id } : {}),
+      ...editVersion,
+    };
     if (entity === "companies") data.tags = formData.getAll("tags");
     if (entity === "tasks" || entity === "projectDeliverables")
       data.completed = values.completed === "on";

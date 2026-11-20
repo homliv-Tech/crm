@@ -3,7 +3,7 @@ import { mock, test } from "node:test";
 import { PGlite, type QueryOptions } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import * as tables from "../lib/db/schema";
 import type { getDb } from "../lib/db";
 import { DELIVERY_PHASES } from "../lib/crm/projects";
@@ -221,8 +221,29 @@ test("schedule and checklist CRUD preserves assignments and work across reusable
         ];
       },
     };
-    const saveSchedule = createSchedulingHandler(deps, "phaseSchedules"),
-      saveItem = createSchedulingHandler(deps, "projectDeliverables");
+    const scheduleHandler = createSchedulingHandler(deps, "phaseSchedules");
+    const itemHandler = createSchedulingHandler(deps, "projectDeliverables");
+    // Model a client reading a current version before each uncontended edit.
+    async function versioned(
+      req: Request,
+      table: typeof tables.phaseSchedules | typeof tables.projectDeliverables,
+    ) {
+      if (req.method !== "PATCH") return req;
+      const body = await req.json();
+      const [row] = await db
+        .select({ rowVersion: sql<string>`${table}.xmin::text` })
+        .from(table)
+        .where(eq(table.id, body.id));
+      return new Request(req.url, {
+        method: req.method,
+        headers: req.headers,
+        body: JSON.stringify({ ...body, rowVersion: row?.rowVersion ?? "0" }),
+      });
+    }
+    const saveSchedule = async (req: Request) =>
+      scheduleHandler(await versioned(req, tables.phaseSchedules));
+    const saveItem = async (req: Request) =>
+      itemHandler(await versioned(req, tables.projectDeliverables));
     const created = await saveSchedule(
       request({ ...schedule, assigneeId: "alice", assigneeName: "Spoofed" }),
     );
@@ -484,7 +505,7 @@ test("schedule and checklist CRUD preserves assignments and work across reusable
   }
 });
 
-test("stale partial schedule and deliverable PATCH requests cannot overwrite a winning update", async () => {
+test("editor versions and in-request checks prevent stale schedule and deliverable updates", async () => {
   const postgres = new PGlite();
   try {
     const db = drizzle(postgres);
@@ -524,6 +545,18 @@ test("stale partial schedule and deliverable PATCH requests cannot overwrite a w
           ? "phase_schedules"
           : "project_deliverables";
       const mutate = createSchedulingHandler(deps, entity);
+      const currentVersion = async () =>
+        (
+          await db
+            .select({ rowVersion: sql<string>`${table}.xmin::text` })
+            .from(table)
+            .where(eq(table.id, id))
+        )[0].rowVersion;
+      const openedVersion = await currentVersion();
+      const [openedRecord] = await db
+        .select()
+        .from(table)
+        .where(eq(table.id, id));
       let readStarted!: () => void;
       const reading = new Promise<void>((resolve) => {
         readStarted = resolve;
@@ -547,7 +580,12 @@ test("stale partial schedule and deliverable PATCH requests cannot overwrite a w
           return result;
         },
       );
-      const stale = mutate(request({ id, notes: "Late notes" }, "PATCH"));
+      const stale = mutate(
+        request(
+          { id, rowVersion: openedVersion, notes: "Late notes" },
+          "PATCH",
+        ),
+      );
       try {
         await Promise.race([
           reading,
@@ -562,7 +600,11 @@ test("stale partial schedule and deliverable PATCH requests cannot overwrite a w
             ? { id, actualStart: "2026-12-01", actualEnd: "2026-12-15" }
             : { id, completed: true };
         assert.equal(
-          (await mutate(request(winningPatch, "PATCH"))).status,
+          (
+            await mutate(
+              request({ ...winningPatch, rowVersion: openedVersion }, "PATCH"),
+            )
+          ).status,
           200,
         );
         const [winner] = await db.select().from(table).where(eq(table.id, id));
@@ -585,7 +627,14 @@ test("stale partial schedule and deliverable PATCH requests cannot overwrite a w
           "a stale notes update must leave the entire winning row untouched",
         );
         assert.equal(
-          (await mutate(request({ id, notes: "Late notes" }, "PATCH"))).status,
+          (
+            await mutate(
+              request(
+                { id, rowVersion: await currentVersion(), notes: "Late notes" },
+                "PATCH",
+              ),
+            )
+          ).status,
           200,
         );
         const [retried] = await db.select().from(table).where(eq(table.id, id));
@@ -594,6 +643,55 @@ test("stale partial schedule and deliverable PATCH requests cannot overwrite a w
           notes: "Late notes",
           updatedAt: retried.updatedAt,
         });
+        // The handler now reads the latest row, but this editor still holds older values.
+        const outdatedEditor = await mutate(
+          request(
+            {
+              ...openedRecord,
+              rowVersion: openedVersion,
+              notes: "Old editor contents",
+            },
+            "PATCH",
+          ),
+        );
+        assert.equal(outdatedEditor.status, 409);
+        assert.match(
+          (await outdatedEditor.json()).error,
+          /since it was opened/,
+        );
+        for (const rowVersion of [undefined, "", "not-a-version"]) {
+          assert.equal(
+            (
+              await mutate(
+                request(
+                  { id, rowVersion, notes: "Missing or invalid version" },
+                  "PATCH",
+                ),
+              )
+            ).status,
+            400,
+          );
+        }
+        const [stillCurrent] = await db
+          .select()
+          .from(table)
+          .where(eq(table.id, id));
+        assert.deepEqual(stillCurrent, retried);
+        const freshSave = await mutate(
+          request(
+            {
+              ...stillCurrent,
+              rowVersion: await currentVersion(),
+              notes: "Reviewed latest changes",
+            },
+            "PATCH",
+          ),
+        );
+        assert.equal(freshSave.status, 200);
+        assert.equal(
+          (await freshSave.json()).rowVersion,
+          await currentVersion(),
+        );
       } finally {
         releaseRead();
         await stale;

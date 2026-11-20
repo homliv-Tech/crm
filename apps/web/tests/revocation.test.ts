@@ -34,6 +34,7 @@ function seed() {
     phaseSchedules: [
       {
         id: "schedule",
+        rowVersion: "1",
         companyId: snapshot.companies[0].id,
         projectId: "project-to-clear",
         phase: "Briefing",
@@ -49,6 +50,7 @@ function seed() {
     projectDeliverables: [
       {
         id: "deliverable",
+        rowVersion: "1",
         companyId: snapshot.companies[0].id,
         projectId: "project-to-clear",
         phase: "Briefing",
