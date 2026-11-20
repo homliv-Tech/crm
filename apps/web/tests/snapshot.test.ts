@@ -63,48 +63,60 @@ test("CRM snapshot reads share a read-only Repeatable Read transaction", async (
         dueDate: "2026-12-01",
       })
       .returning();
-    await db
-      .insert(schema.paymentReceipts)
-      .values({
-        companyId: company.id,
-        projectId: project.id,
-        milestoneId: milestone.id,
-        receiptNumber: "R-1",
-        amount: "25.00",
-        receivedDate: "2026-11-19",
-        method: "UPI",
-      });
-    await db
-      .insert(schema.phaseSchedules)
-      .values({
-        companyId: company.id,
-        projectId: project.id,
-        phase: "Briefing",
-      });
+    await db.insert(schema.paymentReceipts).values({
+      companyId: company.id,
+      projectId: project.id,
+      milestoneId: milestone.id,
+      receiptNumber: "R-1",
+      amount: "25.00",
+      receivedDate: "2026-11-19",
+      method: "UPI",
+    });
+    await db.insert(schema.phaseSchedules).values({
+      companyId: company.id,
+      projectId: project.id,
+      phase: "Briefing",
+    });
     const completedAt = new Date("2026-11-19T12:00:00Z");
-    await db
-      .insert(schema.projectDeliverables)
+    await db.insert(schema.projectDeliverables).values({
+      companyId: company.id,
+      projectId: project.id,
+      phase: "Briefing",
+      title: "Client brief",
+      completed: true,
+      completedAt,
+    });
+    await db.insert(schema.activities).values({
+      companyId: company.id,
+      type: "Note",
+      body: "Brief received",
+      occurredAt: completedAt,
+    });
+    const [partner] = await db
+      .insert(schema.projectPartners)
       .values({
         companyId: company.id,
         projectId: project.id,
-        phase: "Briefing",
-        title: "Client brief",
-        completed: true,
-        completedAt,
-      });
-    await db
-      .insert(schema.activities)
-      .values({
-        companyId: company.id,
-        type: "Note",
-        body: "Brief received",
-        occurredAt: completedAt,
-      });
+        name: "Engineer",
+        role: "Structural engineer",
+        responsibilities: "Structural drawings",
+      })
+      .returning();
+    await db.insert(schema.projectSubmissions).values({
+      companyId: company.id,
+      projectId: project.id,
+      partnerId: partner.id,
+      title: "Calculations",
+      dueDate: "2026-12-01",
+    });
     const readDb = neonDrizzle(http, { schema });
     const snapshot = await getSnapshot(readDb);
     assert.equal(transport.mock.callCount(), 1);
     assert.equal(snapshot.companies[0].id, company.id);
     assert.equal(snapshot.deals[0].id, project.id);
+    assert.equal(snapshot.projectPartners[0].id, partner.id);
+    assert.equal(snapshot.projectSubmissions[0].partnerId, partner.id);
+    assert.equal(snapshot.projectSubmissions[0].status, "Pending");
     assert.match(snapshot.phaseSchedules[0].rowVersion, /^[0-9]+$/);
     assert.match(snapshot.projectDeliverables[0].rowVersion, /^[0-9]+$/);
     assert.equal(snapshot.feeMilestones[0].id, milestone.id);
@@ -116,17 +128,15 @@ test("CRM snapshot reads share a read-only Repeatable Read transaction", async (
     );
     assert.equal(snapshot.activities[0].occurredAt, completedAt.toISOString());
     // Isolation is scoped to the read batch; later writes and refreshes still work.
-    await db
-      .insert(schema.paymentReceipts)
-      .values({
-        companyId: company.id,
-        projectId: project.id,
-        milestoneId: milestone.id,
-        receiptNumber: "R-2",
-        amount: "10.00",
-        receivedDate: "2026-11-20",
-        method: "UPI",
-      });
+    await db.insert(schema.paymentReceipts).values({
+      companyId: company.id,
+      projectId: project.id,
+      milestoneId: milestone.id,
+      receiptNumber: "R-2",
+      amount: "10.00",
+      receivedDate: "2026-11-20",
+      method: "UPI",
+    });
     await db
       .update(schema.projectDeliverables)
       .set({ notes: "Updated after the first snapshot" })

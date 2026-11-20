@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import Button from "@/components/_ui/button";
 import { useCompaniesStore } from "@/stores/companies-store";
 import { useCrmEditor, selectClass } from "./crm-editor";
+import ProjectCoordination from "./project-coordination";
 import ProjectSchedule from "./project-schedule";
 import ProjectFees from "./project-fees";
 import ProjectDecisionRegister from "./project-decision-register";
@@ -11,6 +12,7 @@ import ClientQuotations from "./detail/client-quotations";
 import { money, localDateKey } from "@/lib/crm/format";
 
 type Section =
+  | "coordination"
   | "schedule"
   | "fees"
   | "overview"
@@ -24,6 +26,7 @@ type Section =
 const sections: Section[] = [
   "overview",
   "schedule",
+  "coordination",
   "fees",
   "approvals",
   "changes",
@@ -68,6 +71,8 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
       </button>
     ) : null;
   const counts: Partial<Record<Section, number>> = {
+    coordination: state.projectPartners.filter((p) => p.projectId === projectId)
+      .length,
     fees: state.feeMilestones.filter((m) => m.projectId === projectId).length,
     approvals: state.projectDecisions.filter(
       (d) => d.projectId === projectId && d.kind !== "Design change",
@@ -215,6 +220,15 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
                 project={project}
                 overview={section === "overview"}
                 onViewAll={() => setSection("schedule")}
+              />
+            </div>
+          )}
+          {visible("coordination") && (
+            <div className="min-w-0 lg:col-span-full">
+              <ProjectCoordination
+                project={project}
+                overview={section === "overview"}
+                onViewAll={() => setSection("coordination")}
               />
             </div>
           )}

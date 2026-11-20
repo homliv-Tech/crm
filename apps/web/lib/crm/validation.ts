@@ -1,3 +1,4 @@
+import { projectPartnerInput, projectSubmissionInput } from "./coordination";
 import { phaseScheduleInput, projectDeliverableInput } from "./scheduling";
 import { feeMilestoneInput, paymentReceiptInput } from "./billing";
 import { z } from "zod";
@@ -158,6 +159,8 @@ export const projectDecisionInput = z
       });
   });
 export const entitySchemas = {
+  projectPartners: projectPartnerInput,
+  projectSubmissions: projectSubmissionInput,
   phaseSchedules: phaseScheduleInput,
   projectDeliverables: projectDeliverableInput,
   feeMilestones: feeMilestoneInput,

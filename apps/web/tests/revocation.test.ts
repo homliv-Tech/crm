@@ -22,6 +22,8 @@ const snapshot = {
   paymentReceipts: [],
   phaseSchedules: [],
   projectDeliverables: [],
+  projectPartners: [],
+  projectSubmissions: [],
 };
 function seed() {
   useCompaniesStore.setState(useCompaniesStore.getInitialState(), true);

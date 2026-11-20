@@ -145,6 +145,26 @@ async function mutate(request: Request, context: Context) {
           { status: 400 },
         );
     }
+    if (
+      (kind === "projectPartners" || kind === "projectSubmissions") &&
+      request.method === "PATCH"
+    ) {
+      const scopedTable = tables[kind];
+      const [existing] = await db
+        .select()
+        .from(scopedTable)
+        .where(eq(scopedTable.id, z.uuid().parse(body.id)));
+      if (
+        existing &&
+        (existing.companyId !== body.companyId ||
+          !("projectId" in existing) ||
+          existing.projectId !== body.projectId)
+      )
+        return Response.json(
+          { error: "The linked project cannot be changed." },
+          { status: 400 },
+        );
+    }
     // Keep the table/schema pairing explicit so every write remains type checked.
     async function save(
       entity: Exclude<
@@ -160,6 +180,32 @@ async function mutate(request: Request, context: Context) {
       const id =
         request.method === "PATCH" ? z.uuid().parse(body.id) : undefined;
       switch (entity) {
+        case "projectSubmissions": {
+          const data = entitySchemas.projectSubmissions.parse(body);
+          return id
+            ? db
+                .update(tables.projectSubmissions)
+                .set({ ...data, updatedAt: new Date() })
+                .where(eq(tables.projectSubmissions.id, id))
+                .returning({ id: tables.projectSubmissions.id })
+            : db
+                .insert(tables.projectSubmissions)
+                .values(data)
+                .returning({ id: tables.projectSubmissions.id });
+        }
+        case "projectPartners": {
+          const data = entitySchemas.projectPartners.parse(body);
+          return id
+            ? db
+                .update(tables.projectPartners)
+                .set({ ...data, updatedAt: new Date() })
+                .where(eq(tables.projectPartners.id, id))
+                .returning({ id: tables.projectPartners.id })
+            : db
+                .insert(tables.projectPartners)
+                .values(data)
+                .returning({ id: tables.projectPartners.id });
+        }
         case "projectFiles": {
           const data = entitySchemas.projectFiles.parse(body);
           return id

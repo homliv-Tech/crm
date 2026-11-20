@@ -123,7 +123,31 @@ export type ProjectDeliverable = {
   templateKey: string | null;
   templateItemKey: string | null;
 };
+export type ProjectPartner = {
+  id: string;
+  companyId: string;
+  projectId: string;
+  name: string;
+  firm: string;
+  role: (typeof import("./coordination").COORDINATION_ROLES)[number];
+  email: string;
+  phone: string;
+  responsibilities: string;
+};
+export type ProjectSubmission = {
+  id: string;
+  companyId: string;
+  projectId: string;
+  partnerId: string;
+  title: string;
+  dueDate: string;
+  status: (typeof import("./coordination").SUBMISSION_STATUSES)[number];
+  url: string;
+  notes: string;
+};
 export type CrmSnapshot = {
+  projectPartners: ProjectPartner[];
+  projectSubmissions: ProjectSubmission[];
   phaseSchedules: PhaseSchedule[];
   projectDeliverables: ProjectDeliverable[];
   feeMilestones: FeeMilestone[];
