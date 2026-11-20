@@ -3,18 +3,37 @@
 import { useState } from "react";
 import { Input } from "@/components/_ui/input";
 import { DELIVERY_PHASES } from "@/lib/crm/projects";
+import { useCompaniesStore } from "@/stores/companies-store";
+import { resolveSchedulingAssignment } from "@/lib/crm/scheduling-assignment";
 import TeammatePicker from "./teammate-picker";
 
 export default function SchedulingFields({
   entity,
   record,
+  projectId,
   inputClass,
 }: {
   entity: "phaseSchedules" | "projectDeliverables";
   record: Record<string, unknown>;
+  projectId: string;
   inputClass: string;
 }) {
-  const [assigneeId, setAssigneeId] = useState(String(record.assigneeId ?? ""));
+  const schedules = useCompaniesStore((s) => s.phaseSchedules);
+  const [phase, setPhase] = useState(String(record.phase ?? "Briefing"));
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string | null>(
+    null,
+  );
+  const assignment = resolveSchedulingAssignment({
+    followPhaseLead: entity === "projectDeliverables" && !record.id,
+    projectId,
+    phase,
+    original: {
+      assigneeId: String(record.assigneeId ?? ""),
+      assigneeName: String(record.assigneeName ?? ""),
+    },
+    selectedId: selectedAssigneeId,
+    schedules,
+  });
   function date(name: string, label: string) {
     return (
       <label className="flex flex-col gap-2 text-sm">
@@ -34,7 +53,8 @@ export default function SchedulingFields({
         <select
           name="phase"
           className={inputClass}
-          defaultValue={String(record.phase ?? "Briefing")}
+          value={phase}
+          onChange={(e) => setPhase(e.target.value)}
           disabled={entity === "phaseSchedules"}
         >
           {DELIVERY_PHASES.map((p) => (
@@ -42,11 +62,7 @@ export default function SchedulingFields({
           ))}
         </select>
         {entity === "phaseSchedules" && (
-          <input
-            type="hidden"
-            name="phase"
-            value={String(record.phase ?? "Briefing")}
-          />
+          <input type="hidden" name="phase" value={phase} />
         )}
       </label>
       {entity === "projectDeliverables" && (
@@ -61,9 +77,9 @@ export default function SchedulingFields({
         </label>
       )}
       <TeammatePicker
-        value={assigneeId}
-        onChange={setAssigneeId}
-        previousName={String(record.assigneeName ?? "")}
+        value={assignment.assigneeId}
+        onChange={setSelectedAssigneeId}
+        previousName={assignment.assigneeName}
         inputClass={inputClass}
       />
       {entity === "phaseSchedules" ? (

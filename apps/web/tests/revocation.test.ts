@@ -225,6 +225,35 @@ test("a viewer demotion keeps valid read access while disabling writes", async (
 });
 test("an older successful data response cannot restore records after revocation", async () => {
   seed();
+  const {
+    projectFiles,
+    projectDecisions,
+    feeMilestones,
+    paymentReceipts,
+    phaseSchedules,
+    projectDeliverables,
+  } = useCompaniesStore.getState();
+  const delayedSnapshot = {
+    ...snapshot,
+    projectFiles,
+    projectDecisions,
+    feeMilestones,
+    paymentReceipts,
+    phaseSchedules,
+    projectDeliverables,
+  };
+  for (const records of [
+    projectFiles,
+    projectDecisions,
+    feeMilestones,
+    paymentReceipts,
+    phaseSchedules,
+    projectDeliverables,
+  ])
+    assert.ok(
+      records.length > 0,
+      "the delayed response must contain project records",
+    );
   let finish!: (response: Response) => void;
   globalThis.fetch = (url) =>
     String(url) === "/api/crm"
@@ -234,7 +263,7 @@ test("an older successful data response cannot restore records after revocation"
       : Promise.resolve(Response.json({}, { status: 403 }));
   const refreshing = useCompaniesStore.getState().refresh();
   await useCompaniesStore.getState().checkAccess();
-  finish(Response.json({ ...snapshot, role: "member" }));
+  finish(Response.json({ ...delayedSnapshot, role: "member" }));
   await refreshing;
   assert.equal(useCompaniesStore.getState().accessState, "denied");
   assertCleared();

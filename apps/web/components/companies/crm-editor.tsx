@@ -301,6 +301,7 @@ function RecordForm({
                 key={`${entity}-${selectedProject}`}
                 entity={entity}
                 record={record}
+                projectId={selectedProject}
                 inputClass={selectClass}
               />
             )}
