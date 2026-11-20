@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
-import { PGlite } from "@electric-sql/pglite";
+import { mock, test } from "node:test";
+import { PGlite, type QueryOptions } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { eq } from "drizzle-orm";
@@ -433,12 +433,10 @@ test("schedule and checklist CRUD preserves assignments and work across reusable
       );
     }
     await assert.rejects(
-      db
-        .insert(tables.phaseSchedules)
-        .values({
-          ...phaseScheduleInput.parse(schedule),
-          projectId: foreign.id,
-        }),
+      db.insert(tables.phaseSchedules).values({
+        ...phaseScheduleInput.parse(schedule),
+        projectId: foreign.id,
+      }),
     );
     await assert.rejects(
       db
@@ -483,5 +481,126 @@ test("schedule and checklist CRUD preserves assignments and work across reusable
     );
   } finally {
     await client.close();
+  }
+});
+
+test("stale partial schedule and deliverable PATCH requests cannot overwrite a winning update", async () => {
+  const postgres = new PGlite();
+  try {
+    const db = drizzle(postgres);
+    await migrate(db, { migrationsFolder: "./drizzle" });
+    await db
+      .insert(tables.companies)
+      .values({ id: companyId, name: "Client", owner: "Architect" });
+    await db
+      .insert(tables.deals)
+      .values({ id: projectId, companyId, title: "Home", owner: "Architect" });
+    const [phase] = await db
+      .insert(tables.phaseSchedules)
+      .values(phaseScheduleInput.parse(schedule))
+      .returning();
+    const [item] = await db
+      .insert(tables.projectDeliverables)
+      .values({
+        companyId,
+        projectId,
+        phase: "Concept design",
+        title: "Drawing review",
+      })
+      .returning();
+    const deps = {
+      authorize: async () => ({}),
+      getDb: () => db as unknown as ReturnType<typeof getDb>,
+      getTeam: async () => [],
+    };
+    for (const entity of ["phaseSchedules", "projectDeliverables"] as const) {
+      const table =
+        entity === "phaseSchedules"
+          ? tables.phaseSchedules
+          : tables.projectDeliverables;
+      const id = entity === "phaseSchedules" ? phase.id : item.id;
+      const tableName =
+        entity === "phaseSchedules"
+          ? "phase_schedules"
+          : "project_deliverables";
+      const mutate = createSchedulingHandler(deps, entity);
+      let readStarted!: () => void;
+      const reading = new Promise<void>((resolve) => {
+        readStarted = resolve;
+      });
+      let releaseRead!: () => void;
+      const resume = new Promise<void>((resolve) => {
+        releaseRead = resolve;
+      });
+      let pause = true;
+      const query = postgres.query.bind(postgres);
+      const pausedRead = mock.method(
+        postgres,
+        "query",
+        async (text: string, params?: unknown[], options?: QueryOptions) => {
+          const result = await query(text, params, options);
+          if (pause && text.includes(`from "${tableName}"`)) {
+            pause = false;
+            readStarted();
+            await resume;
+          }
+          return result;
+        },
+      );
+      const stale = mutate(request({ id, notes: "Late notes" }, "PATCH"));
+      try {
+        await Promise.race([
+          reading,
+          stale.then(() => {
+            throw new Error(
+              "PATCH completed before its stale read could be paused",
+            );
+          }),
+        ]);
+        const winningPatch =
+          entity === "phaseSchedules"
+            ? { id, actualStart: "2026-12-01", actualEnd: "2026-12-15" }
+            : { id, completed: true };
+        assert.equal(
+          (await mutate(request(winningPatch, "PATCH"))).status,
+          200,
+        );
+        const [winner] = await db.select().from(table).where(eq(table.id, id));
+        if ("completed" in winner) {
+          assert.equal(winner.completed, true);
+          assert.ok(winner.completedAt);
+        }
+        if ("actualEnd" in winner) assert.equal(winner.actualEnd, "2026-12-15");
+        releaseRead();
+        const response = await stale;
+        assert.equal(response.status, 409);
+        assert.match((await response.json()).error, /changed while saving/);
+        const [preserved] = await db
+          .select()
+          .from(table)
+          .where(eq(table.id, id));
+        assert.deepEqual(
+          preserved,
+          winner,
+          "a stale notes update must leave the entire winning row untouched",
+        );
+        assert.equal(
+          (await mutate(request({ id, notes: "Late notes" }, "PATCH"))).status,
+          200,
+        );
+        const [retried] = await db.select().from(table).where(eq(table.id, id));
+        assert.deepEqual(retried, {
+          ...winner,
+          notes: "Late notes",
+          updatedAt: retried.updatedAt,
+        });
+      } finally {
+        releaseRead();
+        await stale;
+        pausedRead.mock.restore();
+      }
+    }
+  } finally {
+    await postgres.close();
   }
 });

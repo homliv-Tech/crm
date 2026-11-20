@@ -1,12 +1,12 @@
-import { desc } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { summarizeCompanies } from "./summaries";
 import type { CrmSnapshot } from "./types";
 
-export async function getSnapshot(): Promise<CrmSnapshot> {
-  const db = getDb();
+export async function getSnapshot(db = getDb()): Promise<CrmSnapshot> {
   const [
+    ,
     phaseSchedules,
     projectDeliverables,
     feeMilestones,
@@ -19,6 +19,8 @@ export async function getSnapshot(): Promise<CrmSnapshot> {
     activities,
     projectFiles,
   ] = await db.batch([
+    // Neon HTTP batches share a transaction, but default to per-statement snapshots.
+    db.execute(sql`set transaction isolation level repeatable read read only`),
     db
       .select()
       .from(schema.phaseSchedules)

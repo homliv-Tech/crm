@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, sql } from "drizzle-orm";
 import { z } from "zod";
 import { sameOrigin } from "@/lib/access-policy";
 import type { getDb as databaseFactory } from "@/lib/db";
@@ -117,7 +117,10 @@ export function createSchedulingHandler(
       if (entity === "phaseSchedules") {
         const [old] = id
           ? await db
-              .select()
+              .select({
+                ...getTableColumns(phaseSchedules),
+                rowVersion: sql<string>`${phaseSchedules}.xmin::text`,
+              })
               .from(phaseSchedules)
               .where(eq(phaseSchedules.id, id))
           : [];
@@ -149,7 +152,13 @@ export function createSchedulingHandler(
           ? await db
               .update(phaseSchedules)
               .set({ ...data, ...owner, updatedAt: new Date() })
-              .where(eq(phaseSchedules.id, id))
+              // Compare the row version read above, not a timestamp rounded to milliseconds.
+              .where(
+                and(
+                  eq(phaseSchedules.id, id),
+                  sql`${phaseSchedules}.xmin::text = ${old!.rowVersion}`,
+                ),
+              )
               .returning({ id: phaseSchedules.id })
           : await db
               .insert(phaseSchedules)
@@ -160,11 +169,17 @@ export function createSchedulingHandler(
               { ok: true, id: rows[0].id },
               { status: id ? 200 : 201 },
             )
-          : fail("Phase schedule no longer exists.", 404);
+          : fail(
+              "Phase schedule changed while saving. Refresh and try again.",
+              409,
+            );
       }
       const [old] = id
         ? await db
-            .select()
+            .select({
+              ...getTableColumns(projectDeliverables),
+              rowVersion: sql<string>`${projectDeliverables}.xmin::text`,
+            })
             .from(projectDeliverables)
             .where(eq(projectDeliverables.id, id))
         : [];
@@ -195,7 +210,12 @@ export function createSchedulingHandler(
         ? await db
             .update(projectDeliverables)
             .set({ ...values, updatedAt: new Date() })
-            .where(eq(projectDeliverables.id, id))
+            .where(
+              and(
+                eq(projectDeliverables.id, id),
+                sql`${projectDeliverables}.xmin::text = ${old!.rowVersion}`,
+              ),
+            )
             .returning({ id: projectDeliverables.id })
         : await db
             .insert(projectDeliverables)
@@ -206,7 +226,7 @@ export function createSchedulingHandler(
             { ok: true, id: rows[0].id },
             { status: id ? 200 : 201 },
           )
-        : fail("Deliverable no longer exists.", 404);
+        : fail("Deliverable changed while saving. Refresh and try again.", 409);
     } catch (error) {
       if (error instanceof z.ZodError)
         return fail(
