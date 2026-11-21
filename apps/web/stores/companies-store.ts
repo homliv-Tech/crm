@@ -31,7 +31,10 @@ type CompaniesState = {
   loading: boolean;
   saving: boolean;
   projectPhaseSaves: Record<string, ProjectPhase>;
-  projectPhaseRevisions: Record<string, number>;
+  projectPhaseRevisions: Record<
+    string,
+    { revision: number; acknowledged: boolean }
+  >;
   changeProjectPhase: (id: string, phase: ProjectPhase) => Promise<boolean>;
   error: string | null;
   refresh: () => Promise<void>;
@@ -207,8 +210,9 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       const deals = data.deals.map((deal: CrmSnapshot["deals"][number]) => {
         const phase =
           current.projectPhaseSaves[deal.id] ??
-          ((phaseRevisions[deal.id] ?? 0) !==
-          (current.projectPhaseRevisions[deal.id] ?? 0)
+          (current.projectPhaseRevisions[deal.id]?.acknowledged &&
+          (phaseRevisions[deal.id]?.revision ?? 0) !==
+            (current.projectPhaseRevisions[deal.id]?.revision ?? 0)
             ? current.deals.find((p) => p.id === deal.id)?.stage
             : undefined);
         return phase ? { ...deal, stage: phase } : deal;
@@ -280,7 +284,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       return false;
     if (project.stage === stage) return true;
     const epoch = current.accessEpoch;
-    let shouldRefreshPhase = true;
+    let acknowledged = false;
     set((state) => ({
       ...projectPhaseView(
         state.deals.map((p) => (p.id === id ? { ...p, stage } : p)),
@@ -289,7 +293,10 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       projectPhaseSaves: { ...state.projectPhaseSaves, [id]: stage },
       projectPhaseRevisions: {
         ...state.projectPhaseRevisions,
-        [id]: (state.projectPhaseRevisions[id] ?? 0) + 1,
+        [id]: {
+          revision: (state.projectPhaseRevisions[id]?.revision ?? 0) + 1,
+          acknowledged: false,
+        },
       },
       error: null,
     }));
@@ -305,7 +312,6 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
         }),
       });
       const result = await response.json();
-      shouldRefreshPhase = response.status === 404 || response.status === 409;
       if (epoch !== get().accessEpoch) return false;
       if (!response.ok) {
         if (response.status === 401)
@@ -314,6 +320,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
         throw new Error(result.error || "Could not save the project phase.");
       }
       toast.success("Project phase updated", `${project.title} · ${stage}`);
+      acknowledged = true;
       return true;
     } catch (error) {
       if (epoch === get().accessEpoch) {
@@ -342,12 +349,14 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
             projectPhaseSaves: pending,
             projectPhaseRevisions: {
               ...state.projectPhaseRevisions,
-              [id]: (state.projectPhaseRevisions[id] ?? 0) + 1,
+              [id]: {
+                revision: (state.projectPhaseRevisions[id]?.revision ?? 0) + 1,
+                acknowledged,
+              },
             },
           };
         });
-      if (shouldRefreshPhase && epoch === get().accessEpoch)
-        await get().refresh();
+      if (!acknowledged && epoch === get().accessEpoch) await get().refresh();
     }
   },
   mutate: async (entity, method, data) => {
