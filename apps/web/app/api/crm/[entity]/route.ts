@@ -1,3 +1,4 @@
+import { PROJECT_PHASES } from "@/lib/crm/projects";
 import { getWorkOS } from "@workos-inc/authkit-nextjs";
 import { createSchedulingHandler } from "@/lib/crm/scheduling-handler";
 import { listAssignableTeam } from "@/lib/crm/team";
@@ -61,6 +62,26 @@ async function mutate(request: Request, context: Context) {
       return deleted.length
         ? Response.json({ ok: true })
         : Response.json({ error: "Record no longer exists." }, { status: 404 });
+    }
+    if (
+      kind === "deals" &&
+      request.method === "PATCH" &&
+      body.action === "changePhase"
+    ) {
+      const { id, stage } = z
+        .object({ id: z.uuid(), stage: z.enum(PROJECT_PHASES) })
+        .parse(body);
+      const [updated] = await db
+        .update(tables.deals)
+        .set({ stage, updatedAt: new Date() })
+        .where(eq(tables.deals.id, id))
+        .returning({ id: tables.deals.id });
+      return updated
+        ? Response.json({ ok: true })
+        : Response.json(
+            { error: "Project no longer exists." },
+            { status: 404 },
+          );
     }
     if (kind === "companies") {
       const {

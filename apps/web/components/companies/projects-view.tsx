@@ -29,7 +29,12 @@ export default function ProjectsView() {
   async function moveProject(id: string, stage: ProjectPhase) {
     const current = useCompaniesStore.getState();
     const project = current.deals.find((p) => p.id === id);
-    if (!project || !current.canWrite || current.saving) {
+    if (
+      !project ||
+      !current.canWrite ||
+      current.saving ||
+      current.projectPhaseSaves[id]
+    ) {
       setMoveMessage(
         "Move cancelled. The project is unavailable or editing is disabled.",
       );
@@ -40,7 +45,7 @@ export default function ProjectsView() {
       return;
     }
     setMoveMessage(`Moving ${project.title} to ${stage}…`);
-    const saved = await current.mutate("deals", "PATCH", { ...project, stage });
+    const saved = await current.changeProjectPhase(id, stage);
     setMoveMessage(
       saved
         ? `${project.title} moved to ${stage}.`
@@ -302,9 +307,10 @@ export default function ProjectsView() {
                       .map((p) => (
                         <article
                           key={p.id}
-                          draggable={canDrag}
+                          draggable={canDrag && !state.projectPhaseSaves[p.id]}
+                          aria-busy={Boolean(state.projectPhaseSaves[p.id])}
                           onDragStart={(event) => {
-                            if (!canDrag) {
+                            if (!canDrag || state.projectPhaseSaves[p.id]) {
                               event.preventDefault();
                               return;
                             }
@@ -321,7 +327,7 @@ export default function ProjectsView() {
                               setMoveMessage("Move cancelled.");
                             endDrag();
                           }}
-                          className={`border-line-strong bg-background mb-3 rounded-lg border p-4 ${canDrag ? "cursor-grab active:cursor-grabbing" : ""} ${dragging === p.id ? "opacity-40" : ""}`}
+                          className={`border-line-strong bg-background mb-3 rounded-lg border p-4 ${canDrag && !state.projectPhaseSaves[p.id] ? "cursor-grab active:cursor-grabbing" : ""} ${dragging === p.id ? "opacity-40" : ""}`}
                         >
                           <button
                             className="focus-visible:ring-ring min-h-11 text-start text-sm font-medium break-words hover:underline focus-visible:ring-2"
@@ -337,10 +343,19 @@ export default function ProjectsView() {
                           <p className="my-3 text-sm">
                             {money(Number(p.value))}
                           </p>
+                          {state.projectPhaseSaves[p.id] && (
+                            <p role="status" className="text-soft mb-2 text-xs">
+                              Saving phase…
+                            </p>
+                          )}
                           <select
                             aria-label={`Project phase for ${p.title}`}
                             className={`${selectClass} h-11`}
-                            disabled={state.saving || !state.canWrite}
+                            disabled={
+                              state.saving ||
+                              !state.canWrite ||
+                              Boolean(state.projectPhaseSaves[p.id])
+                            }
                             value={p.stage}
                             onDragStart={(event) => event.preventDefault()}
                             onChange={(e) =>
