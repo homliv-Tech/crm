@@ -91,6 +91,9 @@ function RecordForm({
   const [selectedProject, setSelectedProject] = useState(
     String(record.projectId ?? projectId ?? ""),
   );
+  const [selectedPartner, setSelectedPartner] = useState(
+    String(record.partnerId ?? ""),
+  );
   const saving = useCompaniesStore((s) => s.saving);
   const mutate = useCompaniesStore((s) => s.mutate);
   const [error, setError] = useState<string | null>(null);
@@ -200,6 +203,7 @@ function RecordForm({
                   onChange={(e) => {
                     setSelectedClient(e.target.value);
                     setSelectedProject("");
+                    setSelectedPartner("");
                   }}
                   disabled={
                     Boolean(projectId) ||
@@ -283,7 +287,10 @@ function RecordForm({
                     ].includes(entity) &&
                     (edit || Boolean(projectId))
                   }
-                  onChange={(e) => setSelectedProject(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedProject(e.target.value);
+                    setSelectedPartner("");
+                  }}
                 >
                   <option value="">
                     {[
@@ -355,8 +362,9 @@ function RecordForm({
             {(entity === "projectPartners" ||
               entity === "projectSubmissions") && (
               <CoordinationFields
-                key={`${entity}-${selectedProject}`}
                 entity={entity}
+                partnerId={selectedPartner}
+                onPartnerChange={setSelectedPartner}
                 record={record}
                 projectId={selectedProject}
                 inputClass={selectClass}
