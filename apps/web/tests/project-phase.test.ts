@@ -219,3 +219,71 @@ test("a conflicting phase save reloads the current server phase after clearing t
   assert.deepEqual(useCompaniesStore.getState().projectPhaseSaves, {});
   assert.deepEqual(requests, ["/api/crm/deals", "/api/crm"]);
 });
+
+test("phase reconciliation preserves only the changed project and accepts other projects' newer phases", async () => {
+  for (const outcome of ["pending", "saved", "failed"] as const) {
+    seed();
+    const sibling = {
+      ...project,
+      id: crypto.randomUUID(),
+      title: "Office",
+      value: "200000.00",
+    };
+    useCompaniesStore.setState({ deals: [project, sibling] });
+    const snapshot = deferred(),
+      mutation = deferred();
+    const companies = useCompaniesStore.getState().companies;
+    globalThis.fetch = async (url) =>
+      String(url) === "/api/crm" ? snapshot.promise : mutation.promise;
+    const refresh = useCompaniesStore.getState().refresh();
+    const save = useCompaniesStore
+      .getState()
+      .changeProjectPhase(project.id, "Construction");
+    if (outcome !== "pending") {
+      mutation.resolve(
+        Response.json(
+          { ok: outcome === "saved" },
+          { status: outcome === "saved" ? 200 : 503 },
+        ),
+      );
+      await save;
+    }
+    snapshot.resolve(
+      Response.json({
+        deals: [
+          { ...project, title: "New server title" },
+          { ...sibling, stage: "Handover" },
+        ],
+        companies,
+        role: "member",
+      }),
+    );
+    await refresh;
+    const state = useCompaniesStore.getState();
+    assert.equal(
+      state.deals[0].stage,
+      outcome === "failed" ? "Briefing" : "Construction",
+    );
+    assert.equal(state.deals[0].title, "New server title");
+    assert.equal(state.deals[1].stage, "Handover");
+    assert.equal(state.companies[0].openDeals, 1);
+    assert.equal(state.companies[0].pipelineValue, 100000);
+    if (outcome === "pending") {
+      mutation.resolve(Response.json({ ok: true }));
+      await save;
+    }
+    // Once no local phase changed during a refresh, even this project's newer server phase wins.
+    globalThis.fetch = async () =>
+      Response.json({
+        deals: [
+          { ...project, stage: "Approvals" },
+          { ...sibling, stage: "Handover" },
+        ],
+        companies,
+        role: "member",
+      });
+    await useCompaniesStore.getState().refresh();
+    assert.equal(useCompaniesStore.getState().deals[0].stage, "Approvals");
+    mock.restoreAll();
+  }
+});
