@@ -38,3 +38,9 @@ export const projectSubmissionInput = z.object({
     .default(""),
   notes: z.string().trim().max(10000).default(""),
 });
+
+export const projectSubmissionStatusInput = z.object({
+  action: z.literal("changeStatus"),
+  id: z.uuid(),
+  status: z.enum(SUBMISSION_STATUSES),
+});
