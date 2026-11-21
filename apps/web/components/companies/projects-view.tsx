@@ -1,10 +1,17 @@
 "use client";
 
-import { useRef, useState, type DragEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type DragEvent,
+} from "react";
 import Button from "@/components/_ui/button";
 import { Input } from "@/components/_ui/input";
 import { useCompaniesStore } from "@/stores/companies-store";
 import { PROJECT_PHASES, type ProjectPhase } from "@/lib/crm/projects";
+import { trackProjectMoveFocus } from "@/lib/crm/project-move-focus";
 import { money } from "@/lib/crm/format";
 import { ProjectPhaseBadge, ProjectProgress } from "./project-status";
 import { useCrmEditor, selectClass } from "./crm-editor";
@@ -20,6 +27,20 @@ export default function ProjectsView() {
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropPhase, setDropPhase] = useState<ProjectPhase | null>(null);
   const [moveMessage, setMoveMessage] = useState("");
+  const phaseFilter = useRef<HTMLSelectElement>(null);
+  const phaseControls = useRef(new Map<string, HTMLSelectElement>());
+  const projectControls = useRef(new Map<string, HTMLButtonElement>());
+  const moveFocus = useRef<{
+    projectId: string;
+    tracker: ReturnType<typeof trackProjectMoveFocus>;
+    settled: boolean;
+  } | null>(null);
+  useLayoutEffect(() => {
+    const pending = moveFocus.current;
+    if (pending && !pending.tracker.reconcile(!pending.settled))
+      moveFocus.current = null;
+  });
+  useEffect(() => () => moveFocus.current?.tracker.cancel(), []);
   const canDrag = state.canWrite && !state.saving;
   function endDrag() {
     draggedId.current = null;
@@ -27,31 +48,38 @@ export default function ProjectsView() {
     setDropPhase(null);
   }
   async function moveProject(id: string, stage: ProjectPhase) {
-    const current = useCompaniesStore.getState();
-    const project = current.deals.find((p) => p.id === id);
-    if (
-      !project ||
-      !current.canWrite ||
-      current.saving ||
-      current.projectPhaseSaves[id]
-    ) {
+    const focusAttempt = moveFocus.current;
+    try {
+      const current = useCompaniesStore.getState();
+      const project = current.deals.find((p) => p.id === id);
+      if (
+        !project ||
+        !current.canWrite ||
+        current.saving ||
+        current.projectPhaseSaves[id]
+      ) {
+        setMoveMessage(
+          "Move cancelled. The project is unavailable or editing is disabled.",
+        );
+        return;
+      }
+      if (project.stage === stage) {
+        setMoveMessage(`${project.title} is already in ${stage}.`);
+        return;
+      }
+      setMoveMessage(`Moving ${project.title} to ${stage}…`);
+      const saved = await current.changeProjectPhase(id, stage);
       setMoveMessage(
-        "Move cancelled. The project is unavailable or editing is disabled.",
+        saved
+          ? `${project.title} moved to ${stage}.`
+          : `Could not confirm the move for ${project.title}. Refresh the board and try again.`,
       );
-      return;
+    } finally {
+      if (focusAttempt?.projectId === id && moveFocus.current === focusAttempt)
+        focusAttempt.settled = true;
     }
-    if (project.stage === stage) {
-      setMoveMessage(`${project.title} is already in ${stage}.`);
-      return;
-    }
-    setMoveMessage(`Moving ${project.title} to ${stage}…`);
-    const saved = await current.changeProjectPhase(id, stage);
-    setMoveMessage(
-      saved
-        ? `${project.title} moved to ${stage}.`
-        : `Could not confirm the move for ${project.title}. Refresh the board and try again.`,
-    );
   }
+
   function dragOver(event: DragEvent<HTMLElement>, stage: ProjectPhase) {
     if (!draggedId.current || !canDrag) return;
     event.preventDefault();
@@ -121,6 +149,7 @@ export default function ProjectsView() {
           <label className="text-soft flex min-w-0 flex-col gap-2 text-xs">
             Phase
             <select
+              ref={phaseFilter}
               className={`${selectClass} h-11 text-base sm:text-sm`}
               value={phase}
               onChange={(e) => setPhase(e.target.value)}
@@ -330,6 +359,11 @@ export default function ProjectsView() {
                           className={`border-line-strong bg-background mb-3 rounded-lg border p-4 ${canDrag && !state.projectPhaseSaves[p.id] ? "cursor-grab active:cursor-grabbing" : ""} ${dragging === p.id ? "opacity-40" : ""}`}
                         >
                           <button
+                            ref={(element) => {
+                              if (element)
+                                projectControls.current.set(p.id, element);
+                              else projectControls.current.delete(p.id);
+                            }}
                             className="focus-visible:ring-ring min-h-11 text-start text-sm font-medium break-words hover:underline focus-visible:ring-2"
                             onClick={() => {
                               if (!draggedId.current) state.openProject(p.id);
@@ -349,6 +383,11 @@ export default function ProjectsView() {
                             </p>
                           )}
                           <select
+                            ref={(element) => {
+                              if (element)
+                                phaseControls.current.set(p.id, element);
+                              else phaseControls.current.delete(p.id);
+                            }}
                             aria-label={`Project phase for ${p.title}`}
                             className={`${selectClass} h-11`}
                             disabled={
@@ -358,12 +397,25 @@ export default function ProjectsView() {
                             }
                             value={p.stage}
                             onDragStart={(event) => event.preventDefault()}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              moveFocus.current?.tracker.cancel();
+                              moveFocus.current = {
+                                projectId: p.id,
+                                settled: false,
+                                tracker: trackProjectMoveFocus(
+                                  e.currentTarget,
+                                  () => ({
+                                    phase: phaseControls.current.get(p.id),
+                                    open: projectControls.current.get(p.id),
+                                    fallback: phaseFilter.current,
+                                  }),
+                                ),
+                              };
                               void moveProject(
                                 p.id,
                                 e.target.value as ProjectPhase,
-                              )
-                            }
+                              );
+                            }}
                           >
                             {PROJECT_PHASES.map((s) => (
                               <option key={s}>{s}</option>
