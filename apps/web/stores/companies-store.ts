@@ -305,7 +305,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
         }),
       });
       const result = await response.json();
-      shouldRefreshPhase = response.status === 409;
+      shouldRefreshPhase = response.status === 404 || response.status === 409;
       if (epoch !== get().accessEpoch) return false;
       if (!response.ok) {
         if (response.status === 401)
