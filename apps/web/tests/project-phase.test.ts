@@ -370,3 +370,36 @@ test("an interrupted response after revocation does not refresh or restore proje
   assert.deepEqual(useCompaniesStore.getState().deals, []);
   assert.deepEqual(useCompaniesStore.getState().projectPhaseSaves, {});
 });
+
+test("a 404 phase save removes the deleted project after clearing its pending marker", async () => {
+  seed();
+  const requests: string[] = [];
+  globalThis.fetch = async (url) => {
+    requests.push(String(url));
+    if (String(url) === "/api/crm/deals")
+      return Response.json(
+        { error: "Project no longer exists." },
+        { status: 404 },
+      );
+    assert.deepEqual(useCompaniesStore.getState().projectPhaseSaves, {});
+    return Response.json({
+      deals: [],
+      companies: useCompaniesStore.getState().companies,
+      role: "member",
+    });
+  };
+  assert.equal(
+    await useCompaniesStore
+      .getState()
+      .changeProjectPhase(project.id, "Construction"),
+    false,
+  );
+  const state = useCompaniesStore.getState();
+  assert.deepEqual(state.deals, []);
+  assert.deepEqual(state.projectPhaseSaves, {});
+  assert.equal(state.companies[0].openDeals, 0);
+  assert.equal(state.companies[0].pipelineValue, 0);
+  assert.deepEqual(requests, ["/api/crm/deals", "/api/crm"]);
+  assert.equal(await state.changeProjectPhase(project.id, "Handover"), false);
+  assert.equal(requests.length, 2);
+});
