@@ -180,7 +180,7 @@ export default function ProjectsView() {
           </div>
         </div>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-soft text-sm">
+          <p role="status" className="text-soft text-sm">
             {projects.length} {projects.length === 1 ? "project" : "projects"}
             {search || client || phase ? ` of ${state.deals.length}` : ""}
           </p>
