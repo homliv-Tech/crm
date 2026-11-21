@@ -5,11 +5,8 @@ import Button from "@/components/_ui/button";
 import { Input } from "@/components/_ui/input";
 import { useCompaniesStore } from "@/stores/companies-store";
 import { useCrmEditor, selectClass } from "./crm-editor";
-import { PROJECT_PHASES } from "@/lib/crm/projects";
+import ProjectsView from "./projects-view";
 import { Forecast } from "./forecast";
-
-import { money } from "@/lib/crm/format";
-const stages = PROJECT_PHASES;
 
 export default function CrmViews() {
   const state = useCompaniesStore();
@@ -28,14 +25,9 @@ export default function CrmViews() {
       .toLowerCase()
       .includes(search.toLowerCase());
   if (tab === "forecast") return <Forecast />;
+  if (tab === "deals") return <ProjectsView />;
   const entity =
-    tab === "deals"
-      ? "deals"
-      : tab === "contacts"
-        ? "contacts"
-        : tab === "tasks"
-          ? "tasks"
-          : "activities";
+    tab === "contacts" ? "contacts" : tab === "tasks" ? "tasks" : "activities";
   const empty = state.companies.length === 0;
   return (
     <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-6">
@@ -45,7 +37,7 @@ export default function CrmViews() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Search ${tab === "deals" ? "projects" : tab === "activities" ? "correspondence" : entity}…`}
+            placeholder={`Search ${tab === "activities" ? "correspondence" : entity}…`}
           />
         </label>
         <label className="flex flex-col gap-2 text-sm">
@@ -68,86 +60,13 @@ export default function CrmViews() {
           variant="primary"
           onClick={() => edit({ entity, companyId: companyId || undefined })}
         >
-          {tab === "activities"
-            ? "Log activity"
-            : `New ${tab === "deals" ? "project" : entity.slice(0, -1)}`}
+          {tab === "activities" ? "Log activity" : `New ${entity.slice(0, -1)}`}
         </Button>
       </div>
       {empty && (
         <p className="text-subtle mb-4 text-sm">
           Create a client first to add related records.
         </p>
-      )}
-      {tab === "deals" && (
-        <div className="grid min-w-[1760px] grid-cols-8 gap-3">
-          {stages.map((stage) => {
-            const deals = state.deals.filter(
-              (d) => d.stage === stage && match(d, d.title),
-            );
-            return (
-              <section
-                key={stage}
-                className="border-border bg-muted/20 rounded-xl border p-3"
-              >
-                <h2 className="text-sm font-medium">
-                  {stage} <span className="text-subtle">{deals.length}</span>
-                </h2>
-                <p className="text-subtle mt-1 mb-4 text-xs">
-                  {money(deals.reduce((v, d) => v + Number(d.value), 0))}
-                </p>
-                <div className="flex flex-col gap-3">
-                  {deals.map((deal) => (
-                    <article
-                      key={deal.id}
-                      className="border-border bg-background rounded-lg border p-3"
-                    >
-                      <button
-                        className="mb-2 text-left text-sm font-medium hover:underline"
-                        onClick={() => state.openProject(deal.id)}
-                      >
-                        {deal.title}
-                      </button>
-                      <p className="text-subtle text-xs">
-                        {companyName(deal.companyId)}
-                      </p>
-                      {deal.siteAddress && (
-                        <p className="text-subtle mt-2 text-xs">
-                          {deal.siteAddress}
-                        </p>
-                      )}
-                      <p className="my-3 text-sm">
-                        {money(Number(deal.value))} fee
-                      </p>
-                      <p className="text-subtle mb-2 text-xs">
-                        {deal.owner} · {deal.probability}% complete
-                        {deal.closeDate && ` · Handover ${deal.closeDate}`}
-                      </p>
-                      <select
-                        aria-label={`Project phase for ${deal.title}`}
-                        className={selectClass}
-                        disabled={state.saving || !state.canWrite}
-                        value={deal.stage}
-                        onChange={(e) =>
-                          void state.mutate("deals", "PATCH", {
-                            ...deal,
-                            stage: e.target.value,
-                          })
-                        }
-                      >
-                        {stages.map((s) => (
-                          <option key={s}>{s}</option>
-                        ))}
-                      </select>
-                    </article>
-                  ))}
-                  {!deals.length && (
-                    <p className="text-subtle py-4 text-xs">No projects</p>
-                  )}
-                </div>
-              </section>
-            );
-          })}
-        </div>
       )}
       {tab === "contacts" && (
         <div className="overflow-x-auto">

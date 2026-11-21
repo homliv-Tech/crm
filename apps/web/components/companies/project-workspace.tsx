@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Button from "@/components/_ui/button";
 import { useCompaniesStore } from "@/stores/companies-store";
 import { useCrmEditor, selectClass } from "./crm-editor";
+import ProjectOverview from "./project-overview";
 import ProjectCoordination from "./project-coordination";
 import ProjectSchedule from "./project-schedule";
 import ProjectFees from "./project-fees";
@@ -23,30 +24,59 @@ type Section =
   | "contacts"
   | "files"
   | "quotations";
-const sections: Section[] = [
-  "overview",
-  "schedule",
-  "coordination",
-  "fees",
-  "approvals",
-  "changes",
-  "tasks",
-  "correspondence",
-  "contacts",
-  "files",
-  "quotations",
+const navigation: {
+  label: string;
+  sections: { id: Section; label: string }[];
+}[] = [
+  { label: "Overview", sections: [{ id: "overview", label: "Overview" }] },
+  {
+    label: "Delivery",
+    sections: [
+      { id: "schedule", label: "Schedule & deliverables" },
+      { id: "tasks", label: "Tasks" },
+    ],
+  },
+  {
+    label: "Decisions",
+    sections: [
+      { id: "approvals", label: "Approvals" },
+      { id: "changes", label: "Design changes" },
+    ],
+  },
+  {
+    label: "People",
+    sections: [
+      { id: "coordination", label: "Partners & submissions" },
+      { id: "contacts", label: "Client contacts" },
+      { id: "correspondence", label: "Correspondence" },
+    ],
+  },
+  {
+    label: "Commercial",
+    sections: [
+      { id: "fees", label: "Fees & payments" },
+      { id: "quotations", label: "Quotations" },
+    ],
+  },
+  { label: "Files", sections: [{ id: "files", label: "Files & links" }] },
 ];
 
 export default function ProjectWorkspace({ projectId }: { projectId: string }) {
   const state = useCompaniesStore();
   const edit = useCrmEditor();
   const [section, setSection] = useState<Section>("overview");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [section]);
   const project = state.deals.find((p) => p.id === projectId);
   if (!project)
     return (
       <div className="p-6">
         <p role="status">This project is no longer available.</p>
-        <Button onClick={state.closeProject}>Back to projects</Button>
+        <Button variant="secondary" onClick={state.closeProject}>
+          Back to projects
+        </Button>
       </div>
     );
   const client = state.companies.find((c) => c.id === project.companyId);
@@ -54,37 +84,12 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
   const contacts = state.contacts.filter((c) => c.projectId === projectId);
   const activities = state.activities.filter((a) => a.projectId === projectId);
   const files = state.projectFiles.filter((f) => f.projectId === projectId);
-  const openTasks = tasks.filter((t) => !t.completed);
   const today = localDateKey(new Date());
-  const overdue = openTasks.filter((t) => t.dueDate < today).length;
   const context = { companyId: project.companyId, projectId };
-  const visible = (name: Section) => section === "overview" || section === name;
-  const rows = <T,>(items: T[]) =>
-    section === "overview" ? items.slice(0, 4) : items;
-  const viewAll = (name: Section, count: number) =>
-    section === "overview" && count > 4 ? (
-      <button
-        className="mt-3 min-h-11 text-sm underline"
-        onClick={() => setSection(name)}
-      >
-        View all {count} {name}
-      </button>
-    ) : null;
-  const counts: Partial<Record<Section, number>> = {
-    coordination: state.projectPartners.filter((p) => p.projectId === projectId)
-      .length,
-    fees: state.feeMilestones.filter((m) => m.projectId === projectId).length,
-    approvals: state.projectDecisions.filter(
-      (d) => d.projectId === projectId && d.kind !== "Design change",
-    ).length,
-    changes: state.projectDecisions.filter(
-      (d) => d.projectId === projectId && d.kind === "Design change",
-    ).length,
-    tasks: tasks.length,
-    contacts: contacts.length,
-    correspondence: activities.length,
-    files: files.length,
-  };
+  const visible = (name: Section) => section === name;
+  const group = navigation.find((item) =>
+    item.sections.some((item) => item.id === section),
+  )!;
 
   function assignExisting(entity: "tasks" | "contacts" | "activities") {
     const records = state[entity].filter(
@@ -125,7 +130,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto">
+    <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
       <div className="mx-auto max-w-[1280px] p-4 sm:p-6">
         <div className="mb-5 flex flex-wrap items-center gap-2 text-sm">
           <Button
@@ -156,6 +161,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
             </p>
           </div>
           <Button
+            variant="secondary"
             className="min-h-11"
             disabled={!state.canWrite || state.saving}
             onClick={() => edit({ entity: "deals", record: { ...project } })}
@@ -163,62 +169,61 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
             Edit project
           </Button>
         </header>
-        <dl className="border-border my-6 grid grid-cols-2 gap-5 border-y py-5 lg:grid-cols-4">
-          <Fact label="Lead architect" value={project.owner} />
-          <Fact
-            label="Architectural fee"
-            value={money(Number(project.value))}
-          />
-          <Fact
-            label="Target handover"
-            value={project.closeDate || "Not scheduled"}
-          />
-          <Fact label="Progress" value={`${project.probability}% complete`} />
-        </dl>
         <nav
-          aria-label="Project sections"
-          className="border-border mb-6 flex gap-1 overflow-x-auto border-b"
+          aria-label="Project areas"
+          className="border-border mt-6 mb-5 grid grid-cols-3 gap-1 border-b pb-2 sm:flex sm:flex-wrap"
         >
-          {sections.map((name) => (
+          {navigation.map((item) => (
             <button
-              key={name}
-              aria-current={section === name ? "page" : undefined}
-              onClick={() => setSection(name)}
-              className={`min-h-11 shrink-0 border-b-2 px-3 text-sm capitalize ${section === name ? "border-foreground text-foreground" : "text-subtle hover:text-foreground border-transparent"}`}
+              key={item.label}
+              aria-current={group === item ? "page" : undefined}
+              onClick={() => setSection(item.sections[0].id)}
+              className={`focus-visible:ring-ring min-h-11 rounded-md px-3 text-sm focus-visible:ring-2 ${group === item ? "bg-muted text-foreground font-medium" : "text-soft hover:bg-muted/50 hover:text-foreground"}`}
             >
-              {name}
-              {counts[name] !== undefined && (
-                <span className="text-subtle ml-2 tabular-nums">
-                  {counts[name]}
-                </span>
-              )}
+              {item.label}
             </button>
           ))}
         </nav>
-        {section === "overview" && (
-          <section className="border-border mb-6 border-b pb-5">
-            <h2 className="text-base font-medium">Project brief</h2>
-            <p className="mt-3 text-sm leading-relaxed break-words whitespace-pre-wrap">
-              {project.brief ||
-                "Add the scope, client requirements, and design constraints using Edit project."}
-            </p>
-            <p className="text-subtle mt-4 text-sm">
-              {openTasks.length} open tasks
-              {overdue > 0 && (
-                <span className="text-red-400"> · {overdue} overdue</span>
-              )}
-            </p>
-          </section>
+        {group.sections.length > 1 && (
+          <nav
+            aria-label={`${group.label} sections`}
+            className="mb-6 flex flex-wrap gap-2"
+          >
+            {group.sections.map((item) => (
+              <button
+                key={item.id}
+                aria-current={section === item.id ? "page" : undefined}
+                onClick={() => setSection(item.id)}
+                className={`focus-visible:ring-ring min-h-11 rounded-md border px-3 text-sm focus-visible:ring-2 ${section === item.id ? "border-line-strong text-foreground" : "text-soft hover:text-foreground border-transparent"}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
         )}
-        {/* Equal columns share one 24px gutter; stack on narrow screens. */}
-        <div
-          className={`grid gap-6 ${section === "overview" ? "lg:grid-cols-2" : ""}`}
-        >
+        {section === "overview" && (
+          <dl className="border-border mb-6 grid grid-cols-2 gap-5 border-y py-5 lg:grid-cols-4">
+            <Fact label="Lead architect" value={project.owner} />
+            <Fact
+              label="Architectural fee"
+              value={money(Number(project.value))}
+            />
+            <Fact
+              label="Target handover"
+              value={project.closeDate || "Not scheduled"}
+            />
+            <Fact label="Progress" value={`${project.probability}% complete`} />
+          </dl>
+        )}
+        {section === "overview" && (
+          <ProjectOverview project={project} onNavigate={setSection} />
+        )}
+        <div className="grid gap-6">
           {visible("schedule") && (
             <div className="min-w-0 lg:col-span-full">
               <ProjectSchedule
                 project={project}
-                overview={section === "overview"}
+                overview={false}
                 onViewAll={() => setSection("schedule")}
               />
             </div>
@@ -227,7 +232,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
             <div className="min-w-0 lg:col-span-full">
               <ProjectCoordination
                 project={project}
-                overview={section === "overview"}
+                overview={false}
                 onViewAll={() => setSection("coordination")}
               />
             </div>
@@ -236,7 +241,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
             <div className="min-w-0 lg:col-span-full">
               <ProjectFees
                 project={project}
-                overview={section === "overview"}
+                overview={false}
                 onViewAll={() => setSection("fees")}
               />
             </div>
@@ -245,7 +250,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
             <ProjectDecisionRegister
               key="approvals"
               project={project}
-              overview={section === "overview"}
+              overview={false}
               onViewAll={() => setSection("approvals")}
             />
           )}
@@ -254,7 +259,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               key="changes"
               project={project}
               changes
-              overview={section === "overview"}
+              overview={false}
               onViewAll={() => setSection("changes")}
             />
           )}
@@ -263,6 +268,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               title="Tasks"
               action={
                 <Button
+                  variant="secondary"
                   disabled={!state.canWrite || state.saving}
                   onClick={() => edit({ entity: "tasks", ...context })}
                 >
@@ -271,7 +277,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               }
             >
               {tasks.length ? (
-                rows(tasks).map((t) => (
+                tasks.map((t) => (
                   <div
                     key={t.id}
                     className="border-border flex items-center gap-3 border-b py-3"
@@ -302,6 +308,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
                       </p>
                     </div>
                     <Button
+                      variant="secondary"
                       disabled={!state.canWrite}
                       onClick={() =>
                         edit({ entity: "tasks", record: { ...t } })
@@ -314,7 +321,6 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               ) : (
                 <Empty>No tasks assigned to this project.</Empty>
               )}
-              {viewAll("tasks", tasks.length)}
               {assignExisting("tasks")}
             </Block>
           )}
@@ -323,6 +329,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               title="Correspondence"
               action={
                 <Button
+                  variant="secondary"
                   disabled={!state.canWrite || state.saving}
                   onClick={() => edit({ entity: "activities", ...context })}
                 >
@@ -331,13 +338,14 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               }
             >
               {activities.length ? (
-                rows(activities).map((a) => (
+                activities.map((a) => (
                   <div key={a.id} className="border-border border-b py-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-subtle text-xs">
                         {a.type} · {new Date(a.occurredAt).toLocaleString()}
                       </p>
                       <Button
+                        variant="secondary"
                         disabled={!state.canWrite}
                         onClick={() =>
                           edit({ entity: "activities", record: { ...a } })
@@ -356,7 +364,6 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
                   No correspondence yet. Log a meeting, note, call, or email.
                 </Empty>
               )}
-              {viewAll("correspondence", activities.length)}
               {assignExisting("activities")}
             </Block>
           )}
@@ -365,6 +372,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               title="Project contacts"
               action={
                 <Button
+                  variant="secondary"
                   disabled={!state.canWrite || state.saving}
                   onClick={() => edit({ entity: "contacts", ...context })}
                 >
@@ -373,7 +381,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               }
             >
               {contacts.length ? (
-                rows(contacts).map((c) => (
+                contacts.map((c) => (
                   <div
                     key={c.id}
                     className="border-border flex items-start justify-between gap-3 border-b py-3"
@@ -401,6 +409,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
                       )}
                     </div>
                     <Button
+                      variant="secondary"
                       disabled={!state.canWrite}
                       onClick={() =>
                         edit({ entity: "contacts", record: { ...c } })
@@ -412,10 +421,11 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
                 ))
               ) : (
                 <Empty>
-                  Add the client representative, consultants, or contractor.
+                  Add the client representative and other client contacts. Link
+                  external consultants and contractors under Partners &amp;
+                  submissions.
                 </Empty>
               )}
-              {viewAll("contacts", contacts.length)}
               {assignExisting("contacts")}
             </Block>
           )}
@@ -424,6 +434,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               title="Files and links"
               action={
                 <Button
+                  variant="secondary"
                   disabled={!state.canWrite || state.saving}
                   onClick={() => edit({ entity: "projectFiles", ...context })}
                 >
@@ -432,7 +443,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               }
             >
               {files.length ? (
-                rows(files).map((f) => (
+                files.map((f) => (
                   <div
                     key={f.id}
                     className="border-border flex items-center justify-between gap-3 border-b py-3"
@@ -446,6 +457,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
                       {f.title} ↗
                     </a>
                     <Button
+                      variant="secondary"
                       disabled={!state.canWrite}
                       onClick={() =>
                         edit({ entity: "projectFiles", record: { ...f } })
@@ -460,7 +472,6 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
                   Link drawings, documents, and shared folders for this project.
                 </Empty>
               )}
-              {viewAll("files", files.length)}
             </Block>
           )}
           {visible("quotations") && (
