@@ -11,11 +11,15 @@ export default function CoordinationFields({
   entity,
   record,
   projectId,
+  partnerId,
+  onPartnerChange,
   inputClass,
 }: {
   entity: "projectPartners" | "projectSubmissions";
   record: Record<string, unknown>;
   projectId: string;
+  partnerId: string;
+  onPartnerChange: (value: string) => void;
   inputClass: string;
 }) {
   const partners = useCompaniesStore((s) => s.projectPartners).filter(
@@ -82,7 +86,8 @@ export default function CoordinationFields({
           name="partnerId"
           className={inputClass}
           required
-          defaultValue={String(record.partnerId ?? "")}
+          value={partnerId}
+          onChange={(event) => onPartnerChange(event.target.value)}
         >
           <option value="">Choose a project partner</option>
           {partners.map((p) => (
