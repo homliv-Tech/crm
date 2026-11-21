@@ -1,4 +1,4 @@
-import { PROJECT_PHASES } from "@/lib/crm/projects";
+import { saveProjectEdit } from "@/lib/crm/project-edit-handler";
 import { getWorkOS } from "@workos-inc/authkit-nextjs";
 import { createSchedulingHandler } from "@/lib/crm/scheduling-handler";
 import { listAssignableTeam } from "@/lib/crm/team";
@@ -63,26 +63,8 @@ async function mutate(request: Request, context: Context) {
         ? Response.json({ ok: true })
         : Response.json({ error: "Record no longer exists." }, { status: 404 });
     }
-    if (
-      kind === "deals" &&
-      request.method === "PATCH" &&
-      body.action === "changePhase"
-    ) {
-      const { id, stage } = z
-        .object({ id: z.uuid(), stage: z.enum(PROJECT_PHASES) })
-        .parse(body);
-      const [updated] = await db
-        .update(tables.deals)
-        .set({ stage, updatedAt: new Date() })
-        .where(eq(tables.deals.id, id))
-        .returning({ id: tables.deals.id });
-      return updated
-        ? Response.json({ ok: true })
-        : Response.json(
-            { error: "Project no longer exists." },
-            { status: 404 },
-          );
-    }
+    if (kind === "deals" && request.method === "PATCH")
+      return await saveProjectEdit(db, body);
     if (kind === "companies") {
       const {
         openDeals,
@@ -149,20 +131,6 @@ async function mutate(request: Request, context: Context) {
       if (!project)
         return Response.json(
           { error: "Project does not belong to this client." },
-          { status: 400 },
-        );
-    }
-    if (kind === "deals" && request.method === "PATCH") {
-      const [existing] = await db
-        .select()
-        .from(tables.deals)
-        .where(eq(tables.deals.id, z.uuid().parse(body.id)));
-      if (existing && existing.companyId !== body.companyId)
-        return Response.json(
-          {
-            error:
-              "A project's client cannot be changed. Create a project for the other client.",
-          },
           { status: 400 },
         );
     }
@@ -255,16 +223,10 @@ async function mutate(request: Request, context: Context) {
         }
         case "deals": {
           const data = entitySchemas.deals.parse(body);
-          return id
-            ? db
-                .update(tables.deals)
-                .set({ ...data, updatedAt: new Date() })
-                .where(eq(tables.deals.id, id))
-                .returning({ id: tables.deals.id })
-            : db
-                .insert(tables.deals)
-                .values(data)
-                .returning({ id: tables.deals.id });
+          return db
+            .insert(tables.deals)
+            .values(data)
+            .returning({ id: tables.deals.id });
         }
         case "tasks": {
           const data = entitySchemas.tasks.parse(body);

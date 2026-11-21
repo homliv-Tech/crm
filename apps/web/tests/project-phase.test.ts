@@ -73,7 +73,12 @@ test("phase changes appear immediately and save without reloading the CRM", asyn
   assert.deepEqual(calls, [
     [
       "/api/crm/deals",
-      { action: "changePhase", id: project.id, stage: "Handover" },
+      {
+        action: "changePhase",
+        id: project.id,
+        stage: "Handover",
+        expectedStage: "Briefing",
+      },
     ],
   ]);
 });
@@ -189,4 +194,28 @@ test("read-only, missing and unchanged projects do not send phase writes", async
     false,
   );
   assert.equal(calls, 0);
+});
+
+test("a conflicting phase save reloads the current server phase after clearing the optimistic move", async () => {
+  seed();
+  const requests: string[] = [];
+  globalThis.fetch = async (url) => {
+    requests.push(String(url));
+    return String(url) === "/api/crm/deals"
+      ? Response.json({ error: "Phase changed elsewhere" }, { status: 409 })
+      : Response.json({
+          deals: [{ ...project, stage: "Construction" }],
+          companies: useCompaniesStore.getState().companies,
+          role: "member",
+        });
+  };
+  assert.equal(
+    await useCompaniesStore
+      .getState()
+      .changeProjectPhase(project.id, "Handover"),
+    false,
+  );
+  assert.equal(useCompaniesStore.getState().deals[0].stage, "Construction");
+  assert.deepEqual(useCompaniesStore.getState().projectPhaseSaves, {});
+  assert.deepEqual(requests, ["/api/crm/deals", "/api/crm"]);
 });
