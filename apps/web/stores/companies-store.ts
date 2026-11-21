@@ -1,3 +1,5 @@
+import { summarizeCompanyProjects } from "@/lib/crm/summaries";
+import { PROJECT_PHASES, type ProjectPhase } from "@/lib/crm/projects";
 import { toast } from "@crm/notifications/toast";
 import { create } from "zustand";
 import { type Company, type SortKey } from "@/data/companies";
@@ -28,6 +30,9 @@ type CompaniesState = {
   canWrite: boolean;
   loading: boolean;
   saving: boolean;
+  projectPhaseSaves: Record<string, ProjectPhase>;
+  projectPhaseRevision: number;
+  changeProjectPhase: (id: string, phase: ProjectPhase) => Promise<boolean>;
   error: string | null;
   refresh: () => Promise<void>;
   mutate: (
@@ -72,6 +77,21 @@ type CompaniesState = {
   addCompany: (company: Company) => Promise<boolean>;
 };
 
+function projectPhaseView(
+  deals: CrmSnapshot["deals"],
+  companies: CrmSnapshot["companies"],
+) {
+  return {
+    deals,
+    companies: companies.map((company) => ({
+      ...company,
+      ...summarizeCompanyProjects(
+        deals.filter((d) => d.companyId === company.id),
+      ),
+    })),
+  };
+}
+
 export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   projectPartners: [],
   projectSubmissions: [],
@@ -91,6 +111,8 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   canWrite: false,
   loading: true,
   saving: false,
+  projectPhaseSaves: {},
+  projectPhaseRevision: 0,
   error: null,
   blockAccess: (accessState, error) => {
     toast.dismiss();
@@ -98,6 +120,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       accessState,
       accessEpoch: state.accessEpoch + 1,
       error,
+      projectPhaseSaves: {},
       projectPartners: [],
       projectSubmissions: [],
       companies: [],
@@ -130,6 +153,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       set((state) => ({
         accessState: "checking",
         accessEpoch: state.accessEpoch + 1,
+        projectPhaseSaves: {},
         loading: true,
       }));
     const epoch = get().accessEpoch;
@@ -166,6 +190,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   },
   refresh: async () => {
     const epoch = get().accessEpoch;
+    const phaseRevision = get().projectPhaseRevision;
     try {
       const response = await fetch("/api/crm", { cache: "no-store" });
       const data = await response.json();
@@ -177,8 +202,18 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
         );
         return;
       }
+      const current = get();
+      const deals = data.deals.map((deal: CrmSnapshot["deals"][number]) => {
+        const phase =
+          current.projectPhaseSaves[deal.id] ??
+          (phaseRevision !== current.projectPhaseRevision
+            ? current.deals.find((p) => p.id === deal.id)?.stage
+            : undefined);
+        return phase ? { ...deal, stage: phase } : deal;
+      });
       set({
         ...data,
+        ...projectPhaseView(deals, data.companies),
         canWrite: data.role === "admin" || data.role === "member",
         loading: false,
         error: null,
@@ -229,6 +264,75 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       return null;
     }
   },
+  changeProjectPhase: async (id, stage) => {
+    const current = get();
+    const project = current.deals.find((p) => p.id === id);
+    if (
+      !project ||
+      current.accessState !== "allowed" ||
+      !current.canWrite ||
+      current.saving ||
+      current.projectPhaseSaves[id] ||
+      !PROJECT_PHASES.includes(stage)
+    )
+      return false;
+    if (project.stage === stage) return true;
+    const epoch = current.accessEpoch;
+    set((state) => ({
+      ...projectPhaseView(
+        state.deals.map((p) => (p.id === id ? { ...p, stage } : p)),
+        state.companies,
+      ),
+      projectPhaseSaves: { ...state.projectPhaseSaves, [id]: stage },
+      projectPhaseRevision: state.projectPhaseRevision + 1,
+      error: null,
+    }));
+    try {
+      const response = await fetch("/api/crm/deals", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "changePhase", id, stage }),
+      });
+      const result = await response.json();
+      if (epoch !== get().accessEpoch) return false;
+      if (!response.ok) {
+        if (response.status === 401)
+          get().blockAccess("denied", "Sign in to your workspace.");
+        if (response.status === 403) await get().checkAccess();
+        throw new Error(result.error || "Could not save the project phase.");
+      }
+      toast.success("Project phase updated", `${project.title} · ${stage}`);
+      return true;
+    } catch (error) {
+      if (epoch === get().accessEpoch) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Could not save the project phase.";
+        set((state) => ({
+          ...projectPhaseView(
+            state.deals.map((p) =>
+              p.id === id ? { ...p, stage: project.stage } : p,
+            ),
+            state.companies,
+          ),
+          error: message,
+        }));
+        toast.error("Could not update project phase", message);
+      }
+      return false;
+    } finally {
+      if (epoch === get().accessEpoch)
+        set((state) => {
+          const pending = { ...state.projectPhaseSaves };
+          delete pending[id];
+          return {
+            projectPhaseSaves: pending,
+            projectPhaseRevision: state.projectPhaseRevision + 1,
+          };
+        });
+    }
+  },
   mutate: async (entity, method, data) => {
     const input =
       data && typeof data === "object" ? (data as Record<string, unknown>) : {};
@@ -274,6 +378,12 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
         `Could not ${action} ${label.toLowerCase()}`,
         "Your role has read-only access.",
       );
+      return false;
+    }
+    if (entity === "deals" && get().projectPhaseSaves[String(input.id)]) {
+      set({
+        error: "This project's phase is still saving. Try again in a moment.",
+      });
       return false;
     }
     if (get().saving) return false;

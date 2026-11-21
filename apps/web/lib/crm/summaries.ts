@@ -11,6 +11,25 @@ type Account = {
   website: string;
   description: string;
 };
+export function summarizeCompanyProjects(deals: Deal[]) {
+  const open = deals.filter((d) => isActiveProject(d.stage));
+  const pipelineValue = open.reduce((sum, d) => sum + Number(d.value), 0);
+  return {
+    openDeals: open.length,
+    pipelineValue,
+    winProbability: pipelineValue
+      ? Math.round(
+          open.reduce((sum, d) => sum + Number(d.value) * d.probability, 0) /
+            pipelineValue,
+        )
+      : open.length
+        ? Math.round(
+            open.reduce((sum, d) => sum + d.probability, 0) / open.length,
+          )
+        : 0,
+  };
+}
+
 export function summarizeCompanies(
   accounts: Account[],
   deals: Deal[],
@@ -18,10 +37,6 @@ export function summarizeCompanies(
   now = new Date(),
 ): CrmCompany[] {
   return accounts.map((company) => {
-    const open = deals.filter(
-      (d) => d.companyId === company.id && isActiveProject(d.stage),
-    );
-    const pipelineValue = open.reduce((sum, d) => sum + Number(d.value), 0);
     const history = activities
       .filter((a) => a.companyId === company.id)
       .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
@@ -36,18 +51,9 @@ export function summarizeCompanies(
       ...company,
       tags: company.tags as Tag[],
       logo: company.logo ?? undefined,
-      openDeals: open.length,
-      pipelineValue,
-      winProbability: pipelineValue
-        ? Math.round(
-            open.reduce((sum, d) => sum + Number(d.value) * d.probability, 0) /
-              pipelineValue,
-          )
-        : open.length
-          ? Math.round(
-              open.reduce((sum, d) => sum + d.probability, 0) / open.length,
-            )
-          : 0,
+      ...summarizeCompanyProjects(
+        deals.filter((d) => d.companyId === company.id),
+      ),
       trend,
       lastInteraction: {
         date: last?.occurredAt.slice(0, 10) ?? "",
