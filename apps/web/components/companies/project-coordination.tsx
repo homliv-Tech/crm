@@ -173,7 +173,8 @@ export default function ProjectCoordination({
                     disabled={disabled}
                     onChange={(e) =>
                       void state.mutate("projectSubmissions", "PATCH", {
-                        ...s,
+                        action: "changeStatus",
+                        id: s.id,
                         status: e.target.value,
                       })
                     }

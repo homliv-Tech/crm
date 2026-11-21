@@ -1,3 +1,4 @@
+import { saveSubmissionStatus } from "@/lib/crm/submission-status-handler";
 import { saveProjectEdit } from "@/lib/crm/project-edit-handler";
 import { getWorkOS } from "@workos-inc/authkit-nextjs";
 import { createSchedulingHandler } from "@/lib/crm/scheduling-handler";
@@ -65,6 +66,12 @@ async function mutate(request: Request, context: Context) {
     }
     if (kind === "deals" && request.method === "PATCH")
       return await saveProjectEdit(db, body);
+    if (
+      kind === "projectSubmissions" &&
+      request.method === "PATCH" &&
+      body.action === "changeStatus"
+    )
+      return await saveSubmissionStatus(db, body);
     if (kind === "companies") {
       const {
         openDeals,
