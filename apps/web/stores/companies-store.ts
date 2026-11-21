@@ -49,6 +49,9 @@ type CompaniesState = {
   activityWindow: number;
   selectedIds: string[];
   projectId: string | null;
+  initialProjectDestination: string | null;
+  pendingProjectDestination: string | null;
+  requestInitialProject: (id: string) => void;
   openProject: (id: string) => void;
   closeProject: () => void;
   detailId: string | null;
@@ -220,6 +223,14 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       set({
         ...data,
         ...projectPhaseView(deals, data.companies),
+        ...(current.pendingProjectDestination
+          ? {
+              projectId: current.pendingProjectDestination,
+              activeTab: "deals",
+              detailOpen: false,
+              pendingProjectDestination: null,
+            }
+          : {}),
         canWrite: data.role === "admin" || data.role === "member",
         loading: false,
         error: null,
@@ -475,6 +486,8 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   selectedIds: [],
   detailId: null,
   projectId: null,
+  initialProjectDestination: null,
+  pendingProjectDestination: null,
   detailOpen: false,
   profileName: null,
   profileOpen: false,
@@ -495,11 +508,25 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
         : [...state.selectedIds, id],
     })),
   setSelected: (selectedIds) => set({ selectedIds }),
+  requestInitialProject: (id) => {
+    if (get().initialProjectDestination === id) return;
+    set({ initialProjectDestination: id, pendingProjectDestination: id });
+  },
   openProject: (projectId) =>
-    set({ projectId, detailOpen: false, activeTab: "deals" }),
-  closeProject: () => set({ projectId: null }),
+    set({
+      projectId,
+      detailOpen: false,
+      activeTab: "deals",
+      pendingProjectDestination: null,
+    }),
+  closeProject: () => set({ projectId: null, pendingProjectDestination: null }),
   openDetail: (detailId) =>
-    set({ detailId, detailOpen: true, profileOpen: false }),
+    set({
+      detailId,
+      detailOpen: true,
+      profileOpen: false,
+      pendingProjectDestination: null,
+    }),
   closeDetail: () => set({ detailOpen: false }),
   openProfile: (profileName) =>
     set({ profileName, profileOpen: true, detailOpen: false }),
@@ -515,7 +542,8 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       ),
     })),
   markAllNotificationsRead: () => set({ unreadNotificationIds: [] }),
-  setActiveTab: (activeTab) => set({ activeTab, projectId: null }),
+  setActiveTab: (activeTab) =>
+    set({ activeTab, projectId: null, pendingProjectDestination: null }),
   addCompany: async (company) => {
     const saved = await get().mutate("companies", "POST", company);
     if (saved) set({ newCompanyOpen: false });
