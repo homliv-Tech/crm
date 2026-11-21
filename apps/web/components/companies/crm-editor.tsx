@@ -22,7 +22,8 @@ import BillingFields from "./billing-fields";
 import DecisionFields from "./decision-fields";
 import Button from "@/components/_ui/button";
 import { Input } from "@/components/_ui/input";
-import { PROJECT_PHASES } from "@/lib/crm/projects";
+import { projectDetailsPayload } from "@/lib/crm/project-edit";
+import { PROJECT_PHASES, type ProjectPhase } from "@/lib/crm/projects";
 import { SEGMENTS, STAGES } from "@/data/companies";
 import type { Entity } from "@/lib/crm/validation";
 import { useCompaniesStore } from "@/stores/companies-store";
@@ -114,7 +115,11 @@ function RecordForm({
       data.completed = values.completed === "on";
     if (entity === "activities")
       data.occurredAt = record.occurredAt ?? new Date().toISOString();
-    if (await mutate(entity, edit ? "PATCH" : "POST", data)) close();
+    const payload =
+      entity === "deals" && edit
+        ? projectDetailsPayload(data, record.stage as ProjectPhase)
+        : data;
+    if (await mutate(entity, edit ? "PATCH" : "POST", payload)) close();
     else setError(useCompaniesStore.getState().error);
   }
   function field(

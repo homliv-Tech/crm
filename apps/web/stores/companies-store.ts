@@ -278,6 +278,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       return false;
     if (project.stage === stage) return true;
     const epoch = current.accessEpoch;
+    let phaseConflict = false;
     set((state) => ({
       ...projectPhaseView(
         state.deals.map((p) => (p.id === id ? { ...p, stage } : p)),
@@ -291,7 +292,12 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       const response = await fetch("/api/crm/deals", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "changePhase", id, stage }),
+        body: JSON.stringify({
+          action: "changePhase",
+          id,
+          stage,
+          expectedStage: project.stage,
+        }),
       });
       const result = await response.json();
       if (epoch !== get().accessEpoch) return false;
@@ -299,6 +305,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
         if (response.status === 401)
           get().blockAccess("denied", "Sign in to your workspace.");
         if (response.status === 403) await get().checkAccess();
+        phaseConflict = response.status === 409;
         throw new Error(result.error || "Could not save the project phase.");
       }
       toast.success("Project phase updated", `${project.title} · ${stage}`);
@@ -331,6 +338,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
             projectPhaseRevision: state.projectPhaseRevision + 1,
           };
         });
+      if (phaseConflict && epoch === get().accessEpoch) await get().refresh();
     }
   },
   mutate: async (entity, method, data) => {
