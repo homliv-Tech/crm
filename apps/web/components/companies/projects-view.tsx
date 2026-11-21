@@ -126,7 +126,7 @@ export default function ProjectsView() {
           <label className="text-soft flex min-w-0 flex-col gap-2 text-xs">
             Search projects
             <Input
-              className="h-11 text-base sm:text-sm"
+              className="h-11 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-foreground sm:text-sm forced-colors:focus-visible:outline-[Highlight]"
               placeholder="Project, client, site, or architect…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
