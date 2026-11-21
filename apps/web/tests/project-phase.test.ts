@@ -38,6 +38,10 @@ function seed() {
   mock.method(toast, "success", () => "test");
   mock.method(toast, "error", () => "test");
 }
+function currentSnapshot() {
+  const { deals, companies } = useCompaniesStore.getState();
+  return Response.json({ deals, companies, role: "member" });
+}
 function deferred() {
   let resolve!: (response: Response) => void;
   const promise = new Promise<Response>((done) => {
@@ -85,7 +89,8 @@ test("phase changes appear immediately and save without reloading the CRM", asyn
 test("failed phase saves restore the phase and totals without reverting other fields", async () => {
   seed();
   const request = deferred();
-  globalThis.fetch = async () => request.promise;
+  globalThis.fetch = async (url) =>
+    String(url) === "/api/crm" ? currentSnapshot() : request.promise;
   const save = useCompaniesStore
     .getState()
     .changeProjectPhase(project.id, "Cancelled");
@@ -108,10 +113,12 @@ test("different projects can save independently and failures only roll back thei
   useCompaniesStore.setState({ deals: [project, sibling] });
   const first = deferred(),
     second = deferred();
-  globalThis.fetch = async (_url, init) =>
-    JSON.parse(String(init?.body)).id === project.id
-      ? first.promise
-      : second.promise;
+  globalThis.fetch = async (url, init) =>
+    String(url) === "/api/crm"
+      ? currentSnapshot()
+      : JSON.parse(String(init?.body)).id === project.id
+        ? first.promise
+        : second.promise;
   const failed = useCompaniesStore
     .getState()
     .changeProjectPhase(project.id, "Construction");
@@ -233,8 +240,13 @@ test("phase reconciliation preserves only the changed project and accepts other 
     const snapshot = deferred(),
       mutation = deferred();
     const companies = useCompaniesStore.getState().companies;
+    let reads = 0;
     globalThis.fetch = async (url) =>
-      String(url) === "/api/crm" ? snapshot.promise : mutation.promise;
+      String(url) === "/api/crm"
+        ? ++reads === 1
+          ? snapshot.promise
+          : currentSnapshot()
+        : mutation.promise;
     const refresh = useCompaniesStore.getState().refresh();
     const save = useCompaniesStore
       .getState()
@@ -402,4 +414,56 @@ test("a 404 phase save removes the deleted project after clearing its pending ma
   assert.deepEqual(requests, ["/api/crm/deals", "/api/crm"]);
   assert.equal(await state.changeProjectPhase(project.id, "Handover"), false);
   assert.equal(requests.length, 2);
+});
+
+test("failed moves cannot hide a concurrently fetched server phase, regardless of response order", async () => {
+  for (const snapshotFirst of [false, true]) {
+    seed();
+    const delayedSnapshot = deferred(),
+      mutation = deferred();
+    let reads = 0;
+    globalThis.fetch = async (url) => {
+      if (String(url) !== "/api/crm") return mutation.promise;
+      reads++;
+      if (reads === 1) return delayedSnapshot.promise;
+      assert.deepEqual(useCompaniesStore.getState().projectPhaseSaves, {});
+      return Response.json({
+        deals: [{ ...project, stage: "Construction" }],
+        companies: useCompaniesStore.getState().companies,
+        role: "member",
+      });
+    };
+    const save = useCompaniesStore
+      .getState()
+      .changeProjectPhase(project.id, "Handover");
+    const refresh = useCompaniesStore.getState().refresh();
+    const snapshot = () =>
+      Response.json({
+        deals: [{ ...project, stage: "Construction" }],
+        companies: useCompaniesStore.getState().companies,
+        role: "member",
+      });
+    if (snapshotFirst) {
+      delayedSnapshot.resolve(snapshot());
+      await refresh;
+    }
+    mutation.resolve(
+      Response.json({ error: "Database unavailable" }, { status: 503 }),
+    );
+    assert.equal(await save, false);
+    if (!snapshotFirst) {
+      delayedSnapshot.resolve(snapshot());
+      await refresh;
+    }
+    const state = useCompaniesStore.getState();
+    assert.equal(state.deals[0].stage, "Construction");
+    assert.equal(state.companies[0].openDeals, 1);
+    assert.equal(state.companies[0].pipelineValue, 100000);
+    assert.equal(
+      reads,
+      2,
+      "Rollback reconciles once after clearing the pending marker",
+    );
+    mock.restoreAll();
+  }
 });
