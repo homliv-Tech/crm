@@ -147,3 +147,40 @@ test("focus tracking survives a rollback followed by the conflict recovery reloa
   tracker.reconcile(false);
   assert.equal(doc.activeElement, canonical);
 });
+
+test("changing the fallback phase filter cancels restoration without requiring a focus change", () => {
+  for (const saving of [true, false]) {
+    const { doc, source, phase, open, fallback, tracker } = fixture();
+    source.remove();
+    phase.remove();
+    open.remove();
+    tracker.reconcile(true);
+    assert.equal(doc.activeElement, fallback);
+    doc.notify("change", fallback);
+    phase.isConnected = true;
+    phase.disabled = saving;
+    open.isConnected = true;
+    assert.equal(tracker.reconcile(saving), false);
+    assert.equal(doc.activeElement, fallback);
+    phase.disabled = false;
+    tracker.reconcile(false);
+    assert.equal(doc.activeElement, fallback);
+  }
+});
+
+test("a passive rollback or reload can restore a card from the fallback filter", () => {
+  const { doc, source, phase, open, fallback, tracker } = fixture();
+  source.remove();
+  phase.remove();
+  open.remove();
+  tracker.reconcile(true);
+  assert.equal(doc.activeElement, fallback);
+  phase.isConnected = true;
+  phase.disabled = true;
+  open.isConnected = true;
+  tracker.reconcile(true);
+  assert.equal(doc.activeElement, open);
+  phase.disabled = false;
+  tracker.reconcile(false);
+  assert.equal(doc.activeElement, phase);
+});

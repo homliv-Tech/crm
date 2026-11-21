@@ -15,6 +15,7 @@ export function trackProjectMoveFocus(
     active = false;
     doc.removeEventListener("focusin", onFocus, true);
     doc.removeEventListener("pointerdown", onPointer, true);
+    doc.removeEventListener("change", onFilterChange, true);
     doc.defaultView?.removeEventListener("blur", cancel);
   };
   const controlUnavailable = () =>
@@ -30,9 +31,13 @@ export function trackProjectMoveFocus(
   const onPointer = (event: Event) => {
     if (!control.contains(event.target as Node | null)) cancel();
   };
+  const onFilterChange = (event: Event) => {
+    if (event.target === targets().fallback) cancel();
+  };
   if (active) {
     doc.addEventListener("focusin", onFocus, true);
     doc.addEventListener("pointerdown", onPointer, true);
+    doc.addEventListener("change", onFilterChange, true);
     doc.defaultView?.addEventListener("blur", cancel);
   }
   return {
