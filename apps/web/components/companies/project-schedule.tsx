@@ -148,70 +148,75 @@ export default function ProjectSchedule({
           Open full schedule and starter checklists
         </button>
       ) : (
-        <form
-          className="border-border my-5 rounded-lg border p-4"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setApplyMessage("");
-            if (
-              await state.mutate("projectDeliverables", "POST", {
-                ...context,
-                action: "applyTemplate",
-                templateKey,
-                assigneeId,
-              })
-            )
-              setApplyMessage(
-                `${templateKey} checklist applied. Existing work has been kept.`,
-              );
-          }}
-        >
-          <fieldset
-            disabled={!state.canWrite || state.saving}
-            className="grid min-w-0 gap-4 md:grid-cols-3"
+        <details className="border-border my-5 rounded-lg border p-4">
+          <summary className="focus-visible:ring-ring min-h-11 cursor-pointer py-3 text-sm font-medium focus-visible:ring-2">
+            Set up a starter checklist
+          </summary>
+          <form
+            className="pt-4"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setApplyMessage("");
+              if (
+                await state.mutate("projectDeliverables", "POST", {
+                  ...context,
+                  action: "applyTemplate",
+                  templateKey,
+                  assigneeId,
+                })
+              )
+                setApplyMessage(
+                  `${templateKey} checklist applied. Existing work has been kept.`,
+                );
+            }}
           >
-            <legend className="mb-3 text-sm font-medium">
-              Apply a starter checklist
-            </legend>
-            <label className="flex min-w-0 flex-col gap-2 text-sm">
-              Project type
-              <select
-                className={selectClass}
-                value={templateKey}
-                onChange={(e) =>
-                  setTemplateKey(e.target.value as ChecklistType)
-                }
-              >
-                {CHECKLIST_TYPES.map((type) => (
-                  <option key={type}>{type}</option>
-                ))}
-              </select>
-            </label>
-            <TeammatePicker
-              value={assigneeId}
-              onChange={setAssigneeId}
-              inputClass={selectClass}
-              label="Default responsible teammate"
-            />
-            <Button
-              type="submit"
-              className="min-h-11 self-end"
+            <fieldset
               disabled={!state.canWrite || state.saving}
+              className="grid min-w-0 gap-4 md:grid-cols-3"
             >
-              {state.saving ? "Applying…" : "Apply checklist"}
-            </Button>
-          </fieldset>
-          <p className="text-subtle mt-3 text-xs">
-            Adds 12 starter deliverables across six phases. Reapplying adds
-            missing items and preserves dates, assignments, custom edits, and
-            completed work. Review the checklist for your project.
-          </p>
-          {applyMessage && (
-            <p role="status" className="mt-3 text-sm">
-              {applyMessage}
+              <legend className="mb-3 text-sm font-medium">
+                Apply a starter checklist
+              </legend>
+              <label className="flex min-w-0 flex-col gap-2 text-sm">
+                Project type
+                <select
+                  className={selectClass}
+                  value={templateKey}
+                  onChange={(e) =>
+                    setTemplateKey(e.target.value as ChecklistType)
+                  }
+                >
+                  {CHECKLIST_TYPES.map((type) => (
+                    <option key={type}>{type}</option>
+                  ))}
+                </select>
+              </label>
+              <TeammatePicker
+                value={assigneeId}
+                onChange={setAssigneeId}
+                inputClass={selectClass}
+                label="Default responsible teammate"
+              />
+              <Button
+                type="submit"
+                className="min-h-11 self-end"
+                disabled={!state.canWrite || state.saving}
+              >
+                {state.saving ? "Applying…" : "Apply checklist"}
+              </Button>
+            </fieldset>
+            <p className="text-subtle mt-3 text-xs">
+              Adds 12 starter deliverables across six phases. Reapplying adds
+              missing items and preserves dates, assignments, custom edits, and
+              completed work. Review the checklist for your project.
             </p>
-          )}
-        </form>
+            {applyMessage && (
+              <p role="status" className="mt-3 text-sm">
+                {applyMessage}
+              </p>
+            )}
+          </form>
+        </details>
       )}
       <div className="mt-4">
         {(overview ? DELIVERY_PHASES.slice(0, 3) : DELIVERY_PHASES).map(
@@ -232,7 +237,24 @@ export default function ProjectSchedule({
                 ? calendarDaysBetween(schedule.plannedEnd, schedule.actualEnd)
                 : null;
             return (
-              <article key={phase} className="border-border border-t py-4">
+              <details
+                key={phase}
+                open={phase === currentPhase}
+                className="border-border border-t py-4"
+              >
+                <summary className="focus-visible:ring-ring min-h-11 cursor-pointer rounded-sm py-2 text-sm focus-visible:ring-2">
+                  <span className="font-medium">{phase}</span>
+                  <span
+                    className={`ms-2 text-xs ${status === "Overdue" ? "text-danger" : "text-soft"}`}
+                  >
+                    {status}
+                  </span>
+                  <span className="text-soft mt-1 block text-xs">
+                    {range(schedule?.plannedStart, schedule?.plannedEnd)} ·{" "}
+                    {phaseItems.filter((d) => d.completed).length}/
+                    {phaseItems.length} deliverables complete
+                  </span>
+                </summary>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-medium">{phase}</h3>
@@ -293,7 +315,7 @@ export default function ProjectSchedule({
                     {schedule.notes}
                   </p>
                 )}
-              </article>
+              </details>
             );
           },
         )}
