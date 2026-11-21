@@ -25,11 +25,13 @@ export default function Companies({
   const error = useCompaniesStore((s) => s.error);
   const loading = useCompaniesStore((s) => s.loading);
   const refresh = useCompaniesStore((s) => s.refresh);
-  const openProject = useCompaniesStore((s) => s.openProject);
+  const requestInitialProject = useCompaniesStore(
+    (s) => s.requestInitialProject,
+  );
   useEffect(() => {
-    if (initialProjectId) openProject(initialProjectId);
+    if (initialProjectId) requestInitialProject(initialProjectId);
     void refresh();
-  }, [refresh, openProject, initialProjectId]);
+  }, [refresh, requestInitialProject, initialProjectId]);
   return (
     <CrmEditorProvider>
       <section id="companies" className="flex min-h-0 min-w-0 flex-1 flex-col">
