@@ -12,6 +12,7 @@ import { Input } from "@/components/_ui/input";
 import { useCompaniesStore } from "@/stores/companies-store";
 import { PROJECT_PHASES, type ProjectPhase } from "@/lib/crm/projects";
 import { trackProjectMoveFocus } from "@/lib/crm/project-move-focus";
+import { activateProjectLink, projectHref } from "@/lib/crm/project-navigation";
 import { money } from "@/lib/crm/format";
 import { ProjectPhaseBadge, ProjectProgress } from "./project-status";
 import { useCrmEditor, selectClass } from "./crm-editor";
@@ -29,7 +30,7 @@ export default function ProjectsView() {
   const [moveMessage, setMoveMessage] = useState("");
   const phaseFilter = useRef<HTMLSelectElement>(null);
   const phaseControls = useRef(new Map<string, HTMLSelectElement>());
-  const projectControls = useRef(new Map<string, HTMLButtonElement>());
+  const projectControls = useRef(new Map<string, HTMLAnchorElement>());
   const moveFocus = useRef<{
     projectId: string;
     tracker: ReturnType<typeof trackProjectMoveFocus>;
@@ -224,9 +225,12 @@ export default function ProjectsView() {
               <span className="text-end">Fee / handover</span>
             </div>
             {projects.map((p) => (
-              <button
+              <a
                 key={p.id}
-                onClick={() => state.openProject(p.id)}
+                href={projectHref(p.id)}
+                onClick={(event) =>
+                  activateProjectLink(event, p.id, state.openProject)
+                }
                 className="group border-border hover:bg-secondary focus-visible:ring-ring grid w-full gap-4 border-b px-5 py-5 text-start transition-colors duration-150 last:border-b-0 focus-visible:ring-2 focus-visible:ring-inset sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-center lg:gap-5"
               >
                 <span className="min-w-0">
@@ -267,7 +271,7 @@ export default function ProjectsView() {
                       : "Handover not scheduled"}
                   </span>
                 </span>
-              </button>
+              </a>
             ))}
           </div>
         ) : (
@@ -358,19 +362,29 @@ export default function ProjectsView() {
                           }}
                           className={`border-line-strong bg-background mb-3 rounded-lg border p-4 ${canDrag && !state.projectPhaseSaves[p.id] ? "cursor-grab active:cursor-grabbing" : ""} ${dragging === p.id ? "opacity-40" : ""}`}
                         >
-                          <button
+                          <a
+                            href={projectHref(p.id)}
+                            draggable={false}
                             ref={(element) => {
                               if (element)
                                 projectControls.current.set(p.id, element);
                               else projectControls.current.delete(p.id);
                             }}
-                            className="focus-visible:ring-ring min-h-11 text-start text-sm font-medium break-words hover:underline focus-visible:ring-2"
-                            onClick={() => {
-                              if (!draggedId.current) state.openProject(p.id);
+                            className="focus-visible:ring-ring inline-flex min-h-11 items-center text-start text-sm font-medium break-words hover:underline focus-visible:ring-2"
+                            onClick={(event) => {
+                              if (draggedId.current) {
+                                event.preventDefault();
+                                return;
+                              }
+                              activateProjectLink(
+                                event,
+                                p.id,
+                                state.openProject,
+                              );
                             }}
                           >
                             {p.title} →
-                          </button>
+                          </a>
                           <p className="text-soft mt-1 text-xs break-words">
                             {clientName(p.companyId)} · {p.owner}
                           </p>

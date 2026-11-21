@@ -1,6 +1,6 @@
 type MoveTargets = {
   phase?: HTMLSelectElement | null;
-  open?: HTMLButtonElement | null;
+  open?: HTMLAnchorElement | null;
   fallback?: HTMLSelectElement | null;
 };
 
@@ -47,7 +47,8 @@ export function trackProjectMoveFocus(
       }
       const { phase, open, fallback } = targets();
       const next = [phase, open, fallback].find(
-        (element) => element?.isConnected && !element.disabled,
+        (element) =>
+          element?.isConnected && !("disabled" in element && element.disabled),
       );
       if (next && next !== control) {
         control = next;
