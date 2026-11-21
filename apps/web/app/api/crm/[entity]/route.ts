@@ -1,3 +1,4 @@
+import { matchesCoordinationScope } from "@/lib/crm/coordination";
 import { saveSubmissionStatus } from "@/lib/crm/submission-status-handler";
 import { saveProjectEdit } from "@/lib/crm/project-edit-handler";
 import { getWorkOS } from "@workos-inc/authkit-nextjs";
@@ -150,12 +151,7 @@ async function mutate(request: Request, context: Context) {
         .select()
         .from(scopedTable)
         .where(eq(scopedTable.id, z.uuid().parse(body.id)));
-      if (
-        existing &&
-        (existing.companyId !== body.companyId ||
-          !("projectId" in existing) ||
-          existing.projectId !== body.projectId)
-      )
+      if (existing && !matchesCoordinationScope(existing, body))
         return Response.json(
           { error: "The linked project cannot be changed." },
           { status: 400 },

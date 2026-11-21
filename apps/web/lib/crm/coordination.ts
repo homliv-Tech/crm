@@ -13,6 +13,17 @@ export const SUBMISSION_STATUSES = [
   "Accepted",
 ] as const;
 const scope = { companyId: z.uuid(), projectId: z.uuid() };
+export function matchesCoordinationScope(
+  existing: { companyId: string; projectId: string },
+  input: unknown,
+) {
+  const { companyId, projectId } = z.object(scope).parse(input);
+  return (
+    existing.companyId === companyId.toLowerCase() &&
+    existing.projectId === projectId.toLowerCase()
+  );
+}
+
 const text = z.string().trim().min(1).max(200);
 export const projectPartnerInput = z.object({
   ...scope,
