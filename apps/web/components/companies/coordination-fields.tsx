@@ -34,6 +34,7 @@ export default function CoordinationFields({
     <label className="flex flex-col gap-2 text-sm">
       {label}
       <Input
+        className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-foreground forced-colors:focus-visible:outline-[Highlight]"
         name={name}
         type={type}
         required={required}
