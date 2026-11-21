@@ -60,6 +60,37 @@ test("coordination validates responsibilities, roles, submission dates and safe 
   );
 });
 
+test("submission dates reject year zero with a field error while retaining calendar validation", () => {
+  const submission = {
+    companyId: crypto.randomUUID(),
+    projectId: crypto.randomUUID(),
+    partnerId: crypto.randomUUID(),
+    title: "Structural drawings",
+  };
+  for (const dueDate of [
+    "0000-01-01",
+    "0000-02-29",
+    "0000-12-31",
+    "1900-02-29",
+    "2026-02-30",
+  ]) {
+    const result = projectSubmissionInput.safeParse({ ...submission, dueDate });
+    assert.equal(result.success, false, `Reject ${dueDate}`);
+    if (!result.success)
+      assert.deepEqual(result.error.issues[0].path, ["dueDate"]);
+  }
+  for (const dueDate of [
+    "0001-01-01",
+    "2000-02-29",
+    "2026-12-01",
+    "9999-12-31",
+  ])
+    assert.equal(
+      projectSubmissionInput.parse({ ...submission, dueDate }).dueDate,
+      dueDate,
+    );
+});
+
 test("coordination persists submissions, enforces project ownership, and cascades deletion", async () => {
   const client = new PGlite();
   try {

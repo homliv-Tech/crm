@@ -27,7 +27,9 @@ export const projectSubmissionInput = z.object({
   ...scope,
   partnerId: z.uuid(),
   title: text,
-  dueDate: z.iso.date(),
+  dueDate: z.iso.date().refine((value) => !value.startsWith("0000-"), {
+    message: "Use a year from 0001 to 9999.",
+  }),
   status: z.enum(SUBMISSION_STATUSES).default("Pending"),
   url: z
     .union([z.url({ protocol: /^https?$/ }).max(4000), z.literal("")])
