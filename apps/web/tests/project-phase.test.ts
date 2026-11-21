@@ -287,3 +287,86 @@ test("phase reconciliation preserves only the changed project and accepts other 
     mock.restoreAll();
   }
 });
+
+test("unknown phase-write outcomes reload the server phase before the next move", async () => {
+  for (const failure of [
+    "transport-committed",
+    "decode-committed",
+    "transport-uncommitted",
+  ] as const) {
+    seed();
+    const requests: string[] = [];
+    const bodies: { expectedStage: string }[] = [];
+    const serverPhase =
+      failure === "transport-uncommitted" ? "Briefing" : "Construction";
+    globalThis.fetch = async (url, init) => {
+      requests.push(String(url));
+      if (String(url) === "/api/crm") {
+        assert.deepEqual(useCompaniesStore.getState().projectPhaseSaves, {});
+        return Response.json({
+          deals: [{ ...project, stage: serverPhase }],
+          companies: useCompaniesStore.getState().companies,
+          role: "member",
+        });
+      }
+      bodies.push(JSON.parse(String(init?.body)));
+      if (bodies.length > 1) return Response.json({ ok: true });
+      if (failure === "decode-committed")
+        return new Response('{"ok":', { status: 200 });
+      throw new TypeError("Connection interrupted");
+    };
+    assert.equal(
+      await useCompaniesStore
+        .getState()
+        .changeProjectPhase(project.id, "Construction"),
+      false,
+    );
+    assert.equal(useCompaniesStore.getState().deals[0].stage, serverPhase);
+    assert.deepEqual(requests, ["/api/crm/deals", "/api/crm"]);
+    assert.equal(
+      await useCompaniesStore
+        .getState()
+        .changeProjectPhase(project.id, "Handover"),
+      true,
+    );
+    assert.equal(bodies[1].expectedStage, serverPhase);
+    assert.deepEqual(requests, [
+      "/api/crm/deals",
+      "/api/crm",
+      "/api/crm/deals",
+    ]);
+    mock.restoreAll();
+  }
+});
+
+test("an interrupted response after revocation does not refresh or restore project data", async () => {
+  seed();
+  let rejectBody!: (error: Error) => void;
+  let bodyStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    bodyStarted = resolve;
+  });
+  const body = new Promise<never>((_resolve, reject) => {
+    rejectBody = reject;
+  });
+  const response = Response.json({ ok: true });
+  response.json = () => {
+    bodyStarted();
+    return body;
+  };
+  const requests: string[] = [];
+  globalThis.fetch = async (url) => {
+    requests.push(String(url));
+    return response;
+  };
+  const save = useCompaniesStore
+    .getState()
+    .changeProjectPhase(project.id, "Construction");
+  await started;
+  useCompaniesStore.getState().blockAccess("denied", "Access revoked");
+  rejectBody(new TypeError("Response body interrupted"));
+  assert.equal(await save, false);
+  assert.deepEqual(requests, ["/api/crm/deals"]);
+  assert.deepEqual(useCompaniesStore.getState().deals, []);
+  assert.deepEqual(useCompaniesStore.getState().projectPhaseSaves, {});
+});

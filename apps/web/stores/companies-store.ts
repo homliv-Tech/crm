@@ -280,7 +280,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       return false;
     if (project.stage === stage) return true;
     const epoch = current.accessEpoch;
-    let phaseConflict = false;
+    let shouldRefreshPhase = true;
     set((state) => ({
       ...projectPhaseView(
         state.deals.map((p) => (p.id === id ? { ...p, stage } : p)),
@@ -305,12 +305,12 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
         }),
       });
       const result = await response.json();
+      shouldRefreshPhase = response.status === 409;
       if (epoch !== get().accessEpoch) return false;
       if (!response.ok) {
         if (response.status === 401)
           get().blockAccess("denied", "Sign in to your workspace.");
         if (response.status === 403) await get().checkAccess();
-        phaseConflict = response.status === 409;
         throw new Error(result.error || "Could not save the project phase.");
       }
       toast.success("Project phase updated", `${project.title} · ${stage}`);
@@ -346,7 +346,8 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
             },
           };
         });
-      if (phaseConflict && epoch === get().accessEpoch) await get().refresh();
+      if (shouldRefreshPhase && epoch === get().accessEpoch)
+        await get().refresh();
     }
   },
   mutate: async (entity, method, data) => {
