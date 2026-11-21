@@ -19,7 +19,9 @@ export const projectPartnerInput = z.object({
   name: text,
   firm: z.string().trim().max(200).default(""),
   role: z.enum(COORDINATION_ROLES),
-  email: z.union([z.email(), z.literal("")]).default(""),
+  email: z
+    .union([z.email({ pattern: z.regexes.html5Email }), z.literal("")])
+    .default(""),
   phone: z.string().trim().max(100).default(""),
   responsibilities: z.string().trim().min(1).max(10000),
 });

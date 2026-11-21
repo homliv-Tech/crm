@@ -60,6 +60,36 @@ test("coordination validates responsibilities, roles, submission dates and safe 
   );
 });
 
+test("partner emails accept HTML email characters while retaining optional and invalid-email handling", () => {
+  const partner = {
+    companyId: crypto.randomUUID(),
+    projectId: crypto.randomUUID(),
+    name: "Engineer",
+    role: "Structural engineer",
+    responsibilities: "Foundation design",
+  };
+  for (const email of [
+    "design!ops@example.com",
+    "o'connor@example.com",
+    "design+ops@example.com",
+    "",
+  ]) {
+    assert.equal(projectPartnerInput.parse({ ...partner, email }).email, email);
+  }
+  assert.equal(projectPartnerInput.parse(partner).email, "");
+  for (const email of [
+    "invalid",
+    "design ops@example.com",
+    "design@@example.com",
+    "@example.com",
+  ]) {
+    const result = projectPartnerInput.safeParse({ ...partner, email });
+    assert.equal(result.success, false, `Reject ${email}`);
+    if (!result.success)
+      assert.deepEqual(result.error.issues[0].path, ["email"]);
+  }
+});
+
 test("submission dates reject year zero with a field error while retaining calendar validation", () => {
   const submission = {
     companyId: crypto.randomUUID(),
