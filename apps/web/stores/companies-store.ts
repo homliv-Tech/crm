@@ -31,7 +31,7 @@ type CompaniesState = {
   loading: boolean;
   saving: boolean;
   projectPhaseSaves: Record<string, ProjectPhase>;
-  projectPhaseRevision: number;
+  projectPhaseRevisions: Record<string, number>;
   changeProjectPhase: (id: string, phase: ProjectPhase) => Promise<boolean>;
   error: string | null;
   refresh: () => Promise<void>;
@@ -112,7 +112,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   loading: true,
   saving: false,
   projectPhaseSaves: {},
-  projectPhaseRevision: 0,
+  projectPhaseRevisions: {},
   error: null,
   blockAccess: (accessState, error) => {
     toast.dismiss();
@@ -121,6 +121,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       accessEpoch: state.accessEpoch + 1,
       error,
       projectPhaseSaves: {},
+      projectPhaseRevisions: {},
       projectPartners: [],
       projectSubmissions: [],
       companies: [],
@@ -190,7 +191,7 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
   },
   refresh: async () => {
     const epoch = get().accessEpoch;
-    const phaseRevision = get().projectPhaseRevision;
+    const phaseRevisions = get().projectPhaseRevisions;
     try {
       const response = await fetch("/api/crm", { cache: "no-store" });
       const data = await response.json();
@@ -206,7 +207,8 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       const deals = data.deals.map((deal: CrmSnapshot["deals"][number]) => {
         const phase =
           current.projectPhaseSaves[deal.id] ??
-          (phaseRevision !== current.projectPhaseRevision
+          ((phaseRevisions[deal.id] ?? 0) !==
+          (current.projectPhaseRevisions[deal.id] ?? 0)
             ? current.deals.find((p) => p.id === deal.id)?.stage
             : undefined);
         return phase ? { ...deal, stage: phase } : deal;
@@ -285,7 +287,10 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
         state.companies,
       ),
       projectPhaseSaves: { ...state.projectPhaseSaves, [id]: stage },
-      projectPhaseRevision: state.projectPhaseRevision + 1,
+      projectPhaseRevisions: {
+        ...state.projectPhaseRevisions,
+        [id]: (state.projectPhaseRevisions[id] ?? 0) + 1,
+      },
       error: null,
     }));
     try {
@@ -335,7 +340,10 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
           delete pending[id];
           return {
             projectPhaseSaves: pending,
-            projectPhaseRevision: state.projectPhaseRevision + 1,
+            projectPhaseRevisions: {
+              ...state.projectPhaseRevisions,
+              [id]: (state.projectPhaseRevisions[id] ?? 0) + 1,
+            },
           };
         });
       if (phaseConflict && epoch === get().accessEpoch) await get().refresh();
