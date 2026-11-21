@@ -42,7 +42,7 @@ function fixture() {
   source.focus();
   const targets = {
     phase: phase as unknown as HTMLSelectElement,
-    open: open as unknown as HTMLButtonElement,
+    open: open as unknown as HTMLAnchorElement,
     fallback: fallback as unknown as HTMLSelectElement,
   };
   return {

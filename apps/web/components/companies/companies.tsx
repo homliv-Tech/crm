@@ -14,16 +14,22 @@ import Profile from "./profile/profile";
 import NewCompanyDialog from "./new-company/new-company-dialog";
 import CommandMenu from "./command-menu/command-menu";
 
-export default function Companies() {
+export default function Companies({
+  initialProjectId = null,
+}: {
+  initialProjectId?: string | null;
+}) {
   const canWrite = useCompaniesStore((s) => s.canWrite);
   const projectId = useCompaniesStore((s) => s.projectId);
   const tab = useCompaniesStore((s) => s.activeTab);
   const error = useCompaniesStore((s) => s.error);
   const loading = useCompaniesStore((s) => s.loading);
   const refresh = useCompaniesStore((s) => s.refresh);
+  const openProject = useCompaniesStore((s) => s.openProject);
   useEffect(() => {
+    if (initialProjectId) openProject(initialProjectId);
     void refresh();
-  }, [refresh]);
+  }, [refresh, openProject, initialProjectId]);
   return (
     <CrmEditorProvider>
       <section id="companies" className="flex min-h-0 min-w-0 flex-1 flex-col">
