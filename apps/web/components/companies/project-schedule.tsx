@@ -210,11 +210,9 @@ export default function ProjectSchedule({
               missing items and preserves dates, assignments, custom edits, and
               completed work. Review the checklist for your project.
             </p>
-            {applyMessage && (
-              <p role="status" className="mt-3 text-sm">
-                {applyMessage}
-              </p>
-            )}
+            <p role="status" className="mt-3 text-sm">
+              {applyMessage}
+            </p>
           </form>
         </details>
       )}
