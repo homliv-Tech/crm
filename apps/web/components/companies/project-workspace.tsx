@@ -4,13 +4,14 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Button from "@/components/_ui/button";
 import { useCompaniesStore } from "@/stores/companies-store";
 import { useCrmEditor, selectClass } from "./crm-editor";
+import { ProjectPhaseBadge } from "./project-status";
 import ProjectOverview from "./project-overview";
 import ProjectCoordination from "./project-coordination";
 import ProjectSchedule from "./project-schedule";
 import ProjectFees from "./project-fees";
 import ProjectDecisionRegister from "./project-decision-register";
 import ClientQuotations from "./detail/client-quotations";
-import { money, localDateKey } from "@/lib/crm/format";
+import { localDateKey } from "@/lib/crm/format";
 
 type Section =
   | "coordination"
@@ -131,8 +132,8 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
 
   return (
     <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
-      <div className="mx-auto max-w-[1280px] p-4 sm:p-6">
-        <div className="mb-5 flex flex-wrap items-center gap-2 text-sm">
+      <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+        <div className="text-soft mb-6 flex flex-wrap items-center gap-2 text-xs">
           <Button
             variant="ghost"
             className="min-h-11"
@@ -142,7 +143,7 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
           </Button>
           <span className="text-subtle">/</span>
           <button
-            className="text-subtle hover:text-foreground min-h-11 underline"
+            className="text-soft hover:text-foreground focus-visible:ring-ring min-h-11 rounded px-2 focus-visible:ring-2"
             onClick={() => state.openDetail(project.companyId)}
           >
             {client?.name ?? "Client"}
@@ -150,35 +151,35 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
         </div>
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <p className="text-subtle mb-2 text-sm">
-              Project workspace · {project.stage}
-            </p>
-            <h1 className="text-2xl font-medium break-words">
+            <h1 className="text-2xl font-semibold tracking-tight break-words sm:text-3xl">
               {project.title}
             </h1>
-            <p className="text-subtle mt-2 text-sm break-words">
+            <p className="text-soft mt-3 text-sm break-words">
               {project.siteAddress || "Site address not added"}
             </p>
           </div>
-          <Button
-            variant="secondary"
-            className="min-h-11"
-            disabled={!state.canWrite || state.saving}
-            onClick={() => edit({ entity: "deals", record: { ...project } })}
-          >
-            Edit project
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <ProjectPhaseBadge phase={project.stage} />
+            <Button
+              variant="secondary"
+              className="min-h-11 px-4"
+              disabled={!state.canWrite || state.saving}
+              onClick={() => edit({ entity: "deals", record: { ...project } })}
+            >
+              Edit project
+            </Button>
+          </div>
         </header>
         <nav
           aria-label="Project areas"
-          className="border-border mt-6 mb-5 grid grid-cols-3 gap-1 border-b pb-2 sm:flex sm:flex-wrap"
+          className="border-border mt-8 mb-6 grid grid-cols-3 gap-x-2 border-b sm:flex sm:flex-wrap sm:gap-x-6"
         >
           {navigation.map((item) => (
             <button
               key={item.label}
               aria-current={group === item ? "page" : undefined}
               onClick={() => setSection(item.sections[0].id)}
-              className={`focus-visible:ring-ring min-h-11 rounded-md px-3 text-sm focus-visible:ring-2 ${group === item ? "bg-muted text-foreground font-medium" : "text-soft hover:bg-muted/50 hover:text-foreground"}`}
+              className={`focus-visible:ring-ring -mb-px min-h-12 border-b-2 px-1 text-sm transition-colors duration-150 focus-visible:ring-2 ${group === item ? "border-foreground text-foreground font-medium" : "text-soft hover:text-foreground border-transparent"}`}
             >
               {item.label}
             </button>
@@ -200,20 +201,6 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
               </button>
             ))}
           </nav>
-        )}
-        {section === "overview" && (
-          <dl className="border-border mb-6 grid grid-cols-2 gap-5 border-y py-5 lg:grid-cols-4">
-            <Fact label="Lead architect" value={project.owner} />
-            <Fact
-              label="Architectural fee"
-              value={money(Number(project.value))}
-            />
-            <Fact
-              label="Target handover"
-              value={project.closeDate || "Not scheduled"}
-            />
-            <Fact label="Progress" value={`${project.probability}% complete`} />
-          </dl>
         )}
         {section === "overview" && (
           <ProjectOverview project={project} onNavigate={setSection} />
@@ -485,14 +472,6 @@ export default function ProjectWorkspace({ projectId }: { projectId: string }) {
           )}
         </div>
       </div>
-    </div>
-  );
-}
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-subtle text-xs">{label}</dt>
-      <dd className="mt-2 text-sm break-words tabular-nums">{value}</dd>
     </div>
   );
 }
